@@ -327,9 +327,7 @@ async function executeSimpleScriptFlow(simpleScript, process_path, resumeRelativ
         break;
       }
       case "追踪委托": {
-        if (typeof data === "string") {
-          await processCommissionTracking({ data });
-        } else if (data && typeof data === "object") {
+        if (data !== undefined && data !== null) {
           await processCommissionTracking({ data });
         }
         break;
