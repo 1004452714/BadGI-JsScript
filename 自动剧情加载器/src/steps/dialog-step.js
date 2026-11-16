@@ -16,7 +16,6 @@ import { DialogProcessor } from "./dialog-processor.js";
 
       // 执行对话，使用当前步骤的优先选项和NPC白名单
       await DialogProcessor.executeOptimizedAutoTalk(
-        null,
         skipCount,
         priorityOptions,
         npcWhiteList,

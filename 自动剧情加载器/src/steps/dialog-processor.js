@@ -6,7 +6,6 @@ import { StepProcessor } from "./step-processor.js";
   export const DialogProcessor = {
     // 执行优化的自动对话
     executeOptimizedAutoTalk: async (
-      extractedName = null,
       skipCount = 5,
       customPriorityOptions = null,
       customNpcWhiteList = null,
@@ -20,7 +19,7 @@ import { StepProcessor } from "./step-processor.js";
       keyPress("V");
 
       // 初始触发剧情 - 识别人名并点击
-      extractedName = [];
+      let extractedName = null;
       // 人名区域OCR识别
       const nameRegion = { X: 75, Y: 240, WIDTH: 225, HEIGHT: 60 };
       let nameResults = await Utils.easyOCR(nameRegion);

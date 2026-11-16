@@ -878,7 +878,6 @@ import { switchPartyIfNeeded } from "./switch-party.js";
         // 按F键并执行优化的自动剧情
         log.info("执行自动剧情");
         await DialogProcessor.executeOptimizedAutoTalk(
-          null,
           5,
           context.priorityOptions,
           context.npcWhiteList,
