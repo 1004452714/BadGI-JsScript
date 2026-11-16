@@ -763,11 +763,11 @@ import { switchPartyIfNeeded } from "./switch-party.js";
     // 统一的对话委托流程处理器（重构版 - 更简洁的主控制函数）
     executeUnifiedTalkProcess: async (
       processSteps,
-      commissionName,
+      processPath,
       location
     ) => {
       try {
-        log.info("执行统一对话委托流程: {name}", commissionName);
+        log.info("执行统一对话委托流程: {path}", processPath);
 
         if (!processSteps || processSteps.length === 0) {
           log.warn("没有找到有效的流程步骤");
@@ -780,7 +780,7 @@ import { switchPartyIfNeeded } from "./switch-party.js";
         let npcWhiteList = [];
 
         // 刚开始就追踪委托目标
-        //await Execute.findCommissionTarget(commissionName);
+        //await Execute.findCommissionTarget(processPath);
 
         // 执行处理步骤
         for (let i = 0; i < processSteps.length; i++) {
@@ -799,7 +799,7 @@ import { switchPartyIfNeeded } from "./switch-party.js";
 
             // TAG:添加脚本功能点3
             const context = {
-              commissionName,
+              processPath,
               location,
               processSteps,
               currentIndex: i,
@@ -823,7 +823,7 @@ import { switchPartyIfNeeded } from "./switch-party.js";
           await sleep(2000);
         }
 
-        log.info("统一对话委托流程执行完成: {name}", commissionName);
+        log.info("统一对话委托流程执行完成: {path}", processPath);
         return true;
       } catch (error) {
         log.error("执行统一对话委托流程时出错: {error}", error.message);

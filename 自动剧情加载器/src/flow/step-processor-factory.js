@@ -9,7 +9,7 @@ import { processDialogStep } from "../steps/dialog-step.js";
       地图追踪: async (step, context) => {
         await StepProcessor.processMapTracking(
           step,
-          context
+          context.processPath
         );
       },
 
@@ -26,7 +26,7 @@ import { processDialogStep } from "../steps/dialog-step.js";
       键鼠脚本: async (step, context) => {
         await StepProcessor.processKeyMouseScript(
           step,
-          context
+          context.processPath
         );
       },
 
@@ -43,10 +43,6 @@ import { processDialogStep } from "../steps/dialog-step.js";
       await StepProcessor.processKeyPress(step);
       },
 
-      tp: async (step, context) => {
-        await StepProcessor.processTeleport(step);
-      },
-
       等待返回主界面: async (step, context) => {
         await StepProcessor.processWaitMainUI(step.data);
       },
@@ -57,14 +53,6 @@ import { processDialogStep } from "../steps/dialog-step.js";
 
       自动任务: async (step, context) => {
         await StepProcessor.processAutoTask(step);
-      },
-	  长按: async (step, context) => {
-		const keydownTime = context.data || 3000;
-        log.info("等待 {keydownTime} 毫秒", keydownTime);
-		keyDown(data.step)
-        await sleep(keydownTime);
-		keyup(data.step)
-        await StepProcessor.longpressthebutton(step);
       },
     },
 
