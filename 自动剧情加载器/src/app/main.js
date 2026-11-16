@@ -6,6 +6,20 @@ import { DialogProcessor } from "../steps/dialog-processor.js";
 import { StepProcessorFactory } from "../flow/step-processor-factory.js";
 import { autoNavigateToIcon } from "../steps/navigator.js";
 import { switchPartyIfNeeded } from "./switch-party.js";
+import { isInMainUI } from "../common/main-ui.js";
+
+// 按任务描述规范化文本分组；groupMap 用于执行查找，resumingMap 单独持有数组用于断点裁剪
+function buildBlockIndex(blocks) {
+  const build = () => {
+    const map = new Map();
+    for (const block of blocks) {
+      if (!map.has(block.descriptionNorm)) map.set(block.descriptionNorm, []);
+      map.get(block.descriptionNorm).push(block);
+    }
+    return map;
+  };
+  return { groupMap: build(), resumingMap: build() };
+}
 
   // 版本和编译信息
   const VERSION = "1.46";
@@ -240,7 +254,6 @@ import { switchPartyIfNeeded } from "./switch-party.js";
 
     // 执行扩展的简单格式脚本
     executeSimpleScriptFlow: async (simpleScript, process_path, resumeRelativePath) => {
-      const isInMainUI = UIUtils.createMainUIChecker();
       const META = simpleScript.meta || {};
       const BLOCKS = Array.isArray(simpleScript.blocks) ? simpleScript.blocks : [];
       const defaultBlock = BLOCKS.find(b => b.isDefault) || null;
@@ -249,19 +262,8 @@ import { switchPartyIfNeeded } from "./switch-party.js";
       if (META.author) log.info("作者: {author}", META.author);
       if (META.description) log.info("描述: {desc}", META.description);
 
-      // 建立描述 -> 块 列表映射，保持顺序
-      const groupMap = new Map();
-      for (const block of BLOCKS) {
-        if (!groupMap.has(block.descriptionNorm)) groupMap.set(block.descriptionNorm, []);
-        groupMap.get(block.descriptionNorm).push(block);
-      }
-
-      // 数据结构与groupMap保持一致，用来记录带有描述块任务的断点位置
-      const resumingMap = new Map();
-      for (const block of BLOCKS) {
-        if (!resumingMap.has(block.descriptionNorm)) resumingMap.set(block.descriptionNorm, []);
-        resumingMap.get(block.descriptionNorm).push(block);
-      }
+      // 建立描述 -> 块 列表映射，保持顺序；两份数组分别用于执行与断点
+      const { groupMap, resumingMap } = buildBlockIndex(BLOCKS);
 
       const execCounter = new Map();
 
@@ -769,8 +771,7 @@ import { switchPartyIfNeeded } from "./switch-party.js";
           return false;
         }
 
-        // 初始化UI检测器和配置
-        const isInMainUI = UIUtils.createMainUIChecker();
+        // 初始化优先选项与NPC白名单
         let priorityOptions = [];
         let npcWhiteList = [];
 

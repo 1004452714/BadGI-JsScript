@@ -1,3 +1,15 @@
+// 前进一小步（W + 两次空格），供追踪对话与追踪图标复用
+async function advanceStep() {
+  keyDown("w");
+  await sleep(200);
+  keyPress("VK_SPACE");
+  await sleep(200);
+  keyPress("VK_SPACE");
+  await sleep(200);
+  keyUp("w");
+  await sleep(200);
+}
+
   // 自动导航到NPC对话位置（从main_branch.js移植）
   export async function autoNavigateToTalk(npcName = "", iconType = "") {
       try {
@@ -83,14 +95,7 @@
             if (i > 50) throw new Error("视野调整超时");
           }
           // 3. 前进一小步
-          keyDown("w");
-          await sleep(200);
-          keyPress("VK_SPACE");
-          await sleep(200);
-          keyPress("VK_SPACE");
-          await sleep(200);
-          keyUp("w");
-          await sleep(200); // 等待角色移动稳定
+          await advanceStep();
         }
       } catch (error) {
         log.error("自动导航到NPC对话位置时出错: {error}", error.message);
@@ -192,14 +197,7 @@
             if (i > 50) throw new Error("视野调整超时");
           }
           // 3. 前进一小步
-          keyDown("w");
-          await sleep(200);
-          keyPress("VK_SPACE");
-          await sleep(200);
-          keyPress("VK_SPACE");
-          await sleep(200);
-          keyUp("w");
-          await sleep(200); // 等待角色移动稳定
+          await advanceStep();
         }
       } catch (error) {
         log.error("追踪Icon时出错: {error}", error.message);

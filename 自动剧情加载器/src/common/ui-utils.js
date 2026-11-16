@@ -1,31 +1,6 @@
 import { Utils } from "./utils.js";
-// UI工具模块 - 处理UI检测和文本提取等工具函数
+// UI工具模块 - 处理文本提取与 OCR 点击等工具函数
   export const UIUtils = {
-    // 创建主界面检测函数
-    createMainUIChecker: () => {
-      const paimonMenuRo = RecognitionObject.TemplateMatch(
-        file.ReadImageMatSync("Data/RecognitionObject/paimon_menu.png"),
-        0,
-        0,
-        genshin.width / 3.0,
-        genshin.width / 5.0
-      );
-      const exitBtnRo = RecognitionObject.TemplateMatch(
-        file.ReadImageMatSync("Data/RecognitionObject/exitbtn.png"),
-        0,
-        0,
-        genshin.width / 3.0,
-        genshin.width / 5.0
-      );
-
-      return () => {
-        let captureRegion = captureGameRegion();
-        let res = captureRegion.Find(paimonMenuRo);
-        let res2 = captureRegion.Find(exitBtnRo);
-        return !res.isEmpty() || !res2.isEmpty();
-      };
-    },
-
     // 人名提取函数
     extractName: (text) => {
       const patterns = [

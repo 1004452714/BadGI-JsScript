@@ -2,6 +2,60 @@ import { Utils } from "../common/utils.js";
 import { UIUtils } from "../common/ui-utils.js";
 import { StepProcessor } from "./step-processor.js";
 
+// 在 OCR 结果中优先点击白名单 NPC，其次点击包含提取人名的选项
+async function clickWhitelistOrExtractedName(results, npcWhiteList, extractedName, areaLabel) {
+  let clickedWhitelistNPC = false;
+  let clickedExtractedName = false;
+  if (!results || results.count === 0) {
+    return { clickedWhitelistNPC, clickedExtractedName };
+  }
+  log.info(`${areaLabel}识别到 ${results.count} 个文本`);
+
+  for (let i = 0; i < results.count; i++) {
+    const text = results[i].text;
+    const res = results[i];
+    log.info(`${areaLabel}识别到{text}:位置({x},{y},{w},{h})`, res.text, res.x, res.y, res.width, res.height);
+    for (let j = 0; j < npcWhiteList.length; j++) {
+      if (text.includes(npcWhiteList[j])) {
+        log.info(`找到白名单NPC: ${npcWhiteList[j]}，点击该NPC`);
+        keyDown("VK_MENU");
+        await sleep(500);
+        res.x = res.x + Math.round(res.width / 2);
+        res.y = res.y + Math.round(res.height / 2);
+        log.info(`点击位置: ${res.x}, ${res.y}`);
+        click(res.x, res.y);
+        leftButtonClick();
+        keyUp("VK_MENU");
+        clickedWhitelistNPC = true;
+        break;
+      }
+    }
+    if (clickedWhitelistNPC) break;
+  }
+
+  if (!clickedWhitelistNPC && extractedName) {
+    for (let i = 0; i < results.count; i++) {
+      const text = results[i].text;
+      const res = results[i];
+      if (text.includes(extractedName)) {
+        log.info(`点击包含提取到任务人名的选项: ${text}`);
+        keyDown("VK_MENU");
+        await sleep(500);
+        res.x = res.x + Math.round(res.width / 2);
+        res.y = res.y + Math.round(res.height / 2);
+        log.info(`点击位置: ${res.x}, ${res.y}`);
+        click(res.x, res.y);
+        leftButtonClick();
+        keyUp("VK_MENU");
+        clickedExtractedName = true;
+        break;
+      }
+    }
+  }
+
+  return { clickedWhitelistNPC, clickedExtractedName };
+}
+
   // 对话处理模块 - 处理自动对话相关功能
   export const DialogProcessor = {
     // 执行优化的自动对话
@@ -40,65 +94,12 @@ import { StepProcessor } from "./step-processor.js";
       // 对话选项区域OCR识别
       const dialogRegion = { X: 1150, Y: 300, WIDTH: 350, HEIGHT: 400 };
       nameResults = await Utils.easyOCR(dialogRegion);
-      let clickedWhitelistNPC = false;
-      let clickedExtractedName = false;
-
-      // 处理人名区域的OCR结果
-      if (nameResults.count > 0) {
-        log.info(`人名区域识别到 ${nameResults.count} 个文本`);
-
-        // 首先尝试点击白名单中的NPC
-        for (let i = 0; i < nameResults.count; i++) {
-          let text = nameResults[i].text;
-          let res = nameResults[i];
-          log.info(
-            "人名区域识别到{text}:位置({x},{y},{w},{h})",
-            res.text,
-            res.x,
-            res.y,
-            res.width,
-            res.height
-          );
-          // 检查是否包含白名单中的NPC名称
-          for (let j = 0; j < effectiveNpcWhiteList.length; j++) {
-            if (text.includes(effectiveNpcWhiteList[j])) {
-              log.info(`找到白名单NPC: ${effectiveNpcWhiteList[j]}，点击该NPC`);
-              keyDown("VK_MENU");
-              await sleep(500);
-              res.x = res.x + Math.round(res.width / 2);
-              res.y = res.y + Math.round(res.height / 2);
-              log.info(`点击位置: ${res.x}, ${res.y}`);
-              click(res.x, res.y);
-              leftButtonClick();
-              keyUp("VK_MENU");
-              clickedWhitelistNPC = true;
-              break;
-            }
-          }
-          if (clickedWhitelistNPC) break;
-        }
-
-        // 如果没有点击白名单NPC，尝试点击包含提取到的人名的选项
-        if (!clickedWhitelistNPC && extractedName) {
-          for (let i = 0; i < nameResults.count; i++) {
-            let text = nameResults[i].text;
-            let res = nameResults[i];
-            if (text.includes(extractedName)) {
-              log.info(`点击包含提取到任务人名的选项: ${text}`);
-              keyDown("VK_MENU");
-              await sleep(500);
-              res.x = res.x + Math.round(res.width / 2);
-              res.y = res.y + Math.round(res.height / 2);
-              log.info(`点击位置: ${res.x}, ${res.y}`);
-              click(res.x, res.y);
-              leftButtonClick();
-              keyUp("VK_MENU");
-              clickedExtractedName = true;
-              break;
-            }
-          }
-        }
-      }
+      const { clickedWhitelistNPC, clickedExtractedName } = await clickWhitelistOrExtractedName(
+        nameResults,
+        effectiveNpcWhiteList,
+        extractedName,
+        "人名区域"
+      );
 
       // 如果没有找到NPC，使用默认触发
       if (!clickedWhitelistNPC && !clickedExtractedName) {
@@ -252,8 +253,6 @@ import { StepProcessor } from "./step-processor.js";
       // 对话选项区域OCR识别
       const dialogRegion = { X: 1150, Y: 300, WIDTH: 350, HEIGHT: 400 };
       let dialogResults = await Utils.easyOCR(dialogRegion);
-      let clickedWhitelistNPC = false;
-      let clickedExtractedName = false;
 
       // 如果对话区域没有人名，尝试按键操作
       if (dialogResults.count === 0) {
@@ -286,63 +285,13 @@ import { StepProcessor } from "./step-processor.js";
         }
       }
 
-      // 处理人名区域的OCR结果
-      if (dialogResults.count > 0) {
-        log.info(`对话区域识别到 ${dialogResults.count} 个文本`);
-
-        // 首先尝试点击白名单中的NPC
-        for (let i = 0; i < dialogResults.count; i++) {
-          let text = dialogResults[i].text;
-          let res = dialogResults[i];
-          log.info(
-            "对话区域识别到{text}:位置({x},{y},{w},{h})",
-            res.text,
-            res.x,
-            res.y,
-            res.width,
-            res.height
-          );
-
-          // 检查是否包含白名单中的NPC名称
-          for (let j = 0; j < effectiveNpcWhiteList.length; j++) {
-            if (text.includes(effectiveNpcWhiteList[j])) {
-              log.info(`找到白名单NPC: ${effectiveNpcWhiteList[j]}，点击该NPC`);
-              keyDown("VK_MENU");
-              await sleep(500);
-              res.x = res.x + Math.round(res.width / 2);
-              res.y = res.y + Math.round(res.height / 2);
-              log.info(`点击位置: ${res.x}, ${res.y}`);
-              click(res.x, res.y);
-              leftButtonClick();
-              keyUp("VK_MENU");
-              clickedWhitelistNPC = true;
-              break;
-            }
-          }
-          if (clickedWhitelistNPC) break;
-        }
-
-        // 如果没有点击白名单NPC，尝试点击包含提取到的人名的选项
-        if (!clickedWhitelistNPC && extractedName) {
-          for (let i = 0; i < dialogResults.count; i++) {
-            let text = dialogResults[i].text;
-            let res = dialogResults[i];
-            if (text.includes(extractedName)) {
-              log.info(`点击包含提取到任务人名的选项: ${text}`);
-              keyDown("VK_MENU");
-              await sleep(500);
-              res.x = res.x + Math.round(res.width / 2);
-              res.y = res.y + Math.round(res.height / 2);
-              log.info(`点击位置: ${res.x}, ${res.y}`);
-              click(res.x, res.y);
-              leftButtonClick();
-              keyUp("VK_MENU");
-              clickedExtractedName = true;
-              break;
-            }
-          }
-        }
-      }
+      // 处理对话区域的OCR结果
+      const { clickedWhitelistNPC, clickedExtractedName } = await clickWhitelistOrExtractedName(
+        dialogResults,
+        effectiveNpcWhiteList,
+        extractedName,
+        "对话区域"
+      );
 
       // 如果没有找到NPC，使用默认触发
       if (!clickedWhitelistNPC && !clickedExtractedName) {
