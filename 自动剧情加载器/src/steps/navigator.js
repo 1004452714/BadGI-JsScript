@@ -131,7 +131,7 @@
         while (true) {
           // 调整视野
           for (let i = 0; i < 100; i++) {
-            captureRegion = captureGameRegion()
+            let captureRegion = captureGameRegion();
 
             // 检测进入对话
             let inTalk = captureRegion.Find(inTalkRO);
