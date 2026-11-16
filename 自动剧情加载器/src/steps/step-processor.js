@@ -277,42 +277,56 @@ export async function processSwitchRole(step) {
     let characterFound = false;
     let pageTries = 0;
 
+    // 角色图像以角色名开头（如 可莉.png、可莉01.png、琴02.png），先按前缀筛选出候选文件，
+    // 避免用无上界数字循环探测不存在的文件；ReadImageMatSync 读失败只返回空 Mat 不抛异常
+    const imageDir = "Data/characterimage/";
+    const characterImagePaths = Array.from(file.ReadPathSync(imageDir))
+      .filter((imagePath) => {
+        const fileName = imagePath.split(/[\\/]/).pop();
+        return fileName.startsWith(selectedCharacter);
+      });
+
+    if (characterImagePaths.length === 0) {
+      log.error(`未找到【${selectedCharacter}】的角色图像，无法切换`);
+      return false;
+    }
+    log.info(`角色【${selectedCharacter}】共 ${characterImagePaths.length} 张候选图像`);
+
     // 最多尝试滚动页面20次
     while (pageTries < 20) {
-      // 尝试识别所有可能的角色文件名
-      for (let num = 1; ; num++) {
-        const paddedNum = num.toString().padStart(2, "0");
-        const characterFileName = `${selectedCharacter}${paddedNum}`;
+      // 依次比对候选图像，命中即点击并结束
+      for (const imagePath of characterImagePaths) {
+        const characterRo = RecognitionObject.TemplateMatch(
+          file.ReadImageMatSync(imagePath),
+          0,
+          0,
+          1920,
+          1080
+        );
+        let characterResult;
         try {
-          const characterRo = RecognitionObject.TemplateMatch(
-            file.ReadImageMatSync(
-              `Data/characterimage/${characterFileName}.png`
-            ),
-            0,
-            0,
-            1920,
-            1080
-          );
-          const characterResult = findInGameScreen(characterRo);
-          if (characterResult.isExist()) {
-            log.info(`已找到角色${selectedCharacter}`);
-            // 计算向右偏移35像素、向下偏移35像素的位置
-            const targetX = characterResult.x + 35;
-            const targetY = characterResult.y + 35;
-
-            // 边界检查，确保坐标在屏幕范围内
-            const safeX = Math.min(Math.max(targetX, 0), 1920);
-            const safeY = Math.min(Math.max(targetY, 0), 1080);
-
-            click(safeX, safeY);
-            await sleep(500); // 点击角色后等待0.5秒
-            characterFound = true;
-            break;
-          }
-        } catch (error) {
-          // 如果文件不存在，跳出循环
-          break;
+          characterResult = findInGameScreen(characterRo);
+        } finally {
+          // 每次匹配都会读入一张模板图，用完立即释放，避免逐轮累积
+          characterRo.TemplateImageMat?.dispose();
+          characterRo.TemplateImageGreyMat?.dispose();
         }
+        if (!characterResult.isExist()) {
+          continue;
+        }
+        log.info(`已找到角色${selectedCharacter}`);
+        // 计算向右偏移35像素、向下偏移35像素的位置
+        const targetX = characterResult.x + 35;
+        const targetY = characterResult.y + 35;
+
+        // 边界检查，确保坐标在屏幕范围内
+        const safeX = Math.min(Math.max(targetX, 0), 1920);
+        const safeY = Math.min(Math.max(targetY, 0), 1080);
+
+        click(safeX, safeY);
+        await sleep(500); // 点击角色后等待0.5秒
+        characterFound = true;
+        break;
       }
 
       if (characterFound) {
