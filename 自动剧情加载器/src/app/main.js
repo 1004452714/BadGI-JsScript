@@ -32,18 +32,14 @@ import { switchPartyIfNeeded } from "./switch-party.js";
       const processFilePath = process_path;
       let processContent;
       let processSteps;
-      try {
-        processContent = await file.readText(processFilePath);
-        log.info("找到流程文件: {path}", processFilePath);
-        const pauseCount = (processContent.match(/^暂停/gm) || []).length;
-        log.info(`共有 ${pauseCount} 个暂停`);
-      } catch (error) {
-        log.warn(
-          "未找到流程文件: {path}",
-          processFilePath
-        );
+      processContent = await file.readText(processFilePath);
+      if (!processContent || !processContent.trim()) {
+        log.error("流程文件为空或读取失败: {path}", processFilePath);
         return false;
       }
+      log.info("找到流程文件: {path}", processFilePath);
+      const pauseCount = (processContent.match(/^暂停/gm) || []).length;
+      log.info(`共有 ${pauseCount} 个暂停`);
       // 解析流程内容
 
       try {
