@@ -13,7 +13,7 @@ export async function switchPartyIfNeeded(partyName) {
       }
   } catch {
       log.error("队伍切换失败，可能处于联机模式或其他不可切换状态");
-      notification.error(`切换失败，可能处于联机模式或其他不可切换状态`);
+      if (settings.xiaoxitongzhi) notification.error(`切换失败，可能处于联机模式或其他不可切换状态`);
       await genshin.returnMainUi();
   }
 }

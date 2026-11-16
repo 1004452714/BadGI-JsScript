@@ -933,7 +933,7 @@ import { switchPartyIfNeeded } from "./switch-party.js";
       await switchPartyIfNeeded(team);
       await Execute.executeTalkCommission(picked.path);
       dispatcher.ClearAllTriggers();
-      if(settings.xiaoxitongzhi) notification.error("脚本执行完成");
+      if(settings.xiaoxitongzhi) notification.Send("脚本执行完成");
     } catch (error) {
       log.error("执行出错: {error}", error.message);
       errorlog();
