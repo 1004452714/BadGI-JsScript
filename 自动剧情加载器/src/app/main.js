@@ -337,9 +337,6 @@ function buildBlockIndex(blocks) {
             break;
           }
 		  case "按键":
-		  const keyData = typeof data === "string" 
-          ? {data}
-          : data;
           await StepProcessor.processKeyPress({data});
           break;
           case "等待":
@@ -615,8 +612,6 @@ function buildBlockIndex(blocks) {
         }
         return "OK";
       };
-      
-      //await StepProcessor.processAutoTask({ data: { action: "enable", taskType: "AutoSkip" } });
 
       // 检查是否有非默认块（任务描述块）
       const hasTaskBlocks = BLOCKS.some(block => !block.isDefault);
