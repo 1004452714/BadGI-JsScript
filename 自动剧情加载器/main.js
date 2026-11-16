@@ -1,5 +1,6 @@
 import { chooseProcess } from 'picker.js';
 import { Utils } from "./src/common/utils.js";
+import { UI } from "./src/common/ui.js";
 
 (async function () {
   // 版本和编译信息
@@ -43,32 +44,6 @@ const isInMainUI = () => {
   let res2 = captureRegion.Find(exitBtnRo);
   return !res.isEmpty() || !res2.isEmpty();
 };
-
-  const UI = {
-    // 角色选择界面滚动页面函数
-    scrollPage: async (totalDistance, stepDistance = 10, delayMs = 5) => {
-      try {
-        moveMouseTo(400, 750);
-        await sleep(50);
-        leftButtonDown();
-        const steps = Math.ceil(totalDistance / stepDistance);
-        for (let j = 0; j < steps; j++) {
-          const remainingDistance = totalDistance - j * stepDistance;
-          const moveDistance =
-            remainingDistance < stepDistance ? remainingDistance : stepDistance;
-          moveMouseBy(0, -moveDistance);
-          await sleep(delayMs);
-        }
-        await sleep(700);
-        leftButtonUp();
-        await sleep(100);
-        return true;
-      } catch (error) {
-        log.error(`角色选择界面滚动操作时发生错误：${error.message}`);
-        return false;
-      }
-    },
-  };
 
   // 步骤处理器类 - 处理不同类型的委托执行步骤
   // TAG:添加脚本功能点1
