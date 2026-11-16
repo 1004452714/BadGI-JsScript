@@ -84,50 +84,54 @@ export async function processKeyPress(step) {
     let action = "press"; // 默认点按
     let keys = [];
     let duration = 5000; // 长按默认时长（毫秒）
-    data = String(data);//转为字符串
-    if (typeof data === "string") {
+    if (typeof data === "object" && data !== null) {
+      // 对象格式：{ action, key, duration }
+      action = data.action || "press";
+      keys = Array.isArray(data.key) ? data.key : [data.key];
+      if (action === "longpress") {
+        duration = data.duration || 5000;
+      }
+    } else {
+      // 字符串格式；只在字符串分支内做字符串化，避免把对象提前转成 "[object Object]"
+      const text = String(data === undefined || data === null ? "" : data).trim();
+      const parts = text.split(/\s+/);
       // 简化格式："F" → 点按F；"长按 W" → 长按W5秒；"长按 Shift,W 4000" → 同步长按Shift+W 4秒
-      const parts = data.split(' ');
       if (parts[0] === "长按") {
         action = "longpress";
         // 提取按键（支持多键用逗号分隔）
-        const keyPart = parts[1];
-        keys = keyPart.split(",").map(k => k.trim());
+        keys = (parts[1] || "").split(",");
         // 提取自定义时长（可选）
-        if (parts[2] && !isNaN(parseInt(parts[2]))) {
-          duration = parseInt(parts[2]);
+        if (parts[2] && !isNaN(parseInt(parts[2], 10))) {
+          duration = parseInt(parts[2], 10);
         }
       } else if (parts[0] === "松开") {
         action = "release";
-        keys = parts[1].split(",").map(k => k.trim());
+        keys = (parts[1] || "").split(",");
       } else if (parts[0] === "点按") {
         // 完整格式："点按 F"
         action = "press";
         keys = [parts[1]];
-      }
-      else if (parts[0] === "按下") {
+      } else if (parts[0] === "按下") {
         action = "down";
         // 提取按键（支持多键用逗号分隔）
-        const keyPart = parts[1];
-        keys = keyPart.split(",").map(k => k.trim());
+        keys = (parts[1] || "").split(",");
       } else {
         // 简化点按："F"
-        keys = [data];
+        keys = [text];
       }
-    } else if (typeof data === "object") {
-      // 对象格式兼容（保留原有逻辑）
-      action = data.action || "press";
-      if (action === "longpress") {
-        keys = Array.isArray(data.key) ? data.key : [data.key];
-        duration = data.duration || 5000;
-      } else {
-        keys = Array.isArray(data.key) ? data.key : [data.key];
-      }
+      keys = keys.map(k => k.trim());
     }
+    // 过滤空键，避免把 undefined/空串送进 keyPress 抛编码异常
+    keys = keys.filter(k => typeof k === "string" && k.length > 0);
     return { action, keys, duration };
   };
 
   const { action, keys, duration } = parseKeyData(step.data);
+
+  if (keys.length === 0) {
+    log.warn("按键指令没有有效按键: {data}", step.data);
+    return;
+  }
 
   // 执行按键操作
   switch (action) {
