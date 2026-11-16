@@ -124,46 +124,43 @@ export async function executeOptimizedAutoTalk(
       break;
     }
 
-    // 每skipCount次跳过后，进行OCR识别
-    if (true) {
-      // 检查是否有匹配的优先选项
-      let foundPriorityOption = false;
+    // 检查是否有匹配的优先选项
+    let foundPriorityOption = false;
 
-      // 获取对话区域截图并进行OCR识别
-      const dialogOptionsRegion = {
-        X: 1250,
-        Y: 450,
-        WIDTH: 550,
-        HEIGHT: 400,
-      };
-      let ocrResults = await easyOCR(dialogOptionsRegion);
-      if (ocrResults.count > 0) {
-        log.info(`识别到 ${ocrResults.count} 个选项`);
+    // 获取对话区域截图并进行OCR识别
+    const dialogOptionsRegion = {
+      X: 1250,
+      Y: 450,
+      WIDTH: 550,
+      HEIGHT: 400,
+    };
+    let ocrResults = await easyOCR(dialogOptionsRegion);
+    if (ocrResults.count > 0) {
+      log.info(`识别到 ${ocrResults.count} 个选项`);
 
-        for (let i = 0; i < ocrResults.count; i++) {
-          let ocrText = ocrResults[i].text;
+      for (let i = 0; i < ocrResults.count; i++) {
+        let ocrText = ocrResults[i].text;
 
-          // 检查是否在优先选项列表中
-          for (let j = 0; j < effectivePriorityOptions.length; j++) {
-            if (ocrText.includes(effectivePriorityOptions[j])) {
-              log.info(
-                `找到优先选项: ${effectivePriorityOptions[j]}，点击该选项`
-              );
-              // 点击该选项
-              ocrResults[i].click();
-              await sleep(500);
-              foundPriorityOption = true;
-              break;
-            }
+        // 检查是否在优先选项列表中
+        for (let j = 0; j < effectivePriorityOptions.length; j++) {
+          if (ocrText.includes(effectivePriorityOptions[j])) {
+            log.info(
+              `找到优先选项: ${effectivePriorityOptions[j]}，点击该选项`
+            );
+            // 点击该选项
+            ocrResults[i].click();
+            await sleep(500);
+            foundPriorityOption = true;
+            break;
           }
-
-          if (foundPriorityOption) break;
         }
 
-        // 如果没有找到优先选项，则使用默认跳过
-        if (!foundPriorityOption) {
-          await genshin.chooseTalkOption("", 1, false);
-        }
+        if (foundPriorityOption) break;
+      }
+
+      // 如果没有找到优先选项，则使用默认跳过
+      if (!foundPriorityOption) {
+        await genshin.chooseTalkOption("", 1, false);
       }
     }
 
