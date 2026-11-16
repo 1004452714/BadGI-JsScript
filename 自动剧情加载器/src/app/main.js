@@ -7,6 +7,7 @@ import { processRegisteredStep } from "../flow/step-processor-factory.js";
 import { autoNavigateToIcon } from "../steps/navigator.js";
 import { switchPartyIfNeeded } from "./switch-party.js";
 import { isInMainUI } from "../common/main-ui.js";
+import { initRealtimeTriggers, setRealtimeTrigger, disableAllRealtimeTriggers } from "../common/realtime-triggers.js";
 
 // 按任务描述规范化文本分组；groupMap 用于执行查找，resumingMap 单独持有数组用于断点裁剪
 function buildBlockIndex(blocks) {
@@ -350,17 +351,11 @@ async function executeSimpleScriptFlow(simpleScript, process_path, resumeRelativ
         await sleep(typeof data === "number" ? data : 5000);
         break;
       case "自动拾取":
+        // 只切换自动拾取本身，不再整体清空启用名单，避免连带关掉自动剧情/自动吃药
         if (data === "关闭") {
-          log.info("关闭自动拾取");
-          dispatcher.ClearAllTriggers();
-          dispatcher.AddTrigger(new RealtimeTimer("AutoSkip"));
-          if (!settings.noEat) {
-            dispatcher.AddTrigger(new RealtimeTimer("AutoEat"));
-          }
-        }
-        else {
-          log.info("开启自动拾取");
-          dispatcher.AddTrigger(new RealtimeTimer("AutoPick"));
+          setRealtimeTrigger("autoPick", false);
+        } else {
+          setRealtimeTrigger("autoPick", true);
         }
         break;
       case "任务完成":
@@ -724,6 +719,8 @@ async function executeSimpleScriptFlow(simpleScript, process_path, resumeRelativ
 async function executeTalkCommission(process_path, resumeRelativePath) {
   try {
 
+    // 实时任务在流程真正开始时启用，而不是在脚本启动阶段
+    initRealtimeTriggers();
     const processSteps = await loadAndParseProcessFile(process_path);
 
     //log.info("文件位置: {path}", process_path);
@@ -909,16 +906,6 @@ export const Main = async () => {
 
     log.info("执行任务: {path}", picked.name);
     const resumeRelativePath = picked.path.replace(/^process[\\/]/, "");
-    log.info("启用自动剧情");
-    dispatcher.AddTrigger(new RealtimeTimer("AutoSkip"));
-    if (!settings.noSkip) {
-      log.info("启用自动拾取");
-      dispatcher.AddTrigger(new RealtimeTimer("AutoPick"));
-    }
-    if (!settings.noEat) {
-      log.info("启用自动吃药");
-      dispatcher.AddTrigger(new RealtimeTimer("AutoEat"));
-    }
     await switchPartyIfNeeded(team);
     await executeTalkCommission(picked.path, resumeRelativePath);
     if (settings.xiaoxitongzhi) notification.Send("脚本执行完成");
@@ -928,6 +915,6 @@ export const Main = async () => {
     if (settings.xiaoxitongzhi) notification.error("脚本执行出错: " + error.message);
   } finally {
     // 出错路径同样要复位实时任务，否则自动拾取/吃药/跳过会残留到下一个脚本
-    dispatcher.ClearAllTriggers();
+    disableAllRealtimeTriggers();
   }
 };
