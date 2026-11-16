@@ -1,56 +1,88 @@
 # 自动剧情加载器 代码审查问题清单
 
-- 审查对象：`dev` 分支 `自动剧情加载器/`（含 `main.js`、`picker.js`、`src/**/*.js`、`manifest.json`）
+- 审查对象：`dev` 分支 `自动剧情加载器/`（含 `main.js`、`src/**/*.js`、`manifest.json`）
 - 审查方式：静态阅读 + `node --input-type=module --check` + 与上游 `better-genshin-impact` 源码核对
-- 文档性质：本次审查发现的问题与修复方案快照，作为后续逐项修复的依据
-- 说明：本文件创建后不再随修复提交改动，保持初始快照
+- 文档性质：待修复问题的当前快照，作为逐项修复的依据
+- 说明：本文件只列**尚未修复**的问题；1.46 的既有缺陷已在本分支修复完毕，见第五节
 
 ## 一、结论摘要
 
-当前 `dev` 分支只完成了“原样抽出”式初步模块化：入口 `main.js` 已收口为 3 行，叶子模块拆到 `src/`，但执行引擎（解析、执行、断点、切队编排）仍整体留在 `src/app/main.js`（约 943 行），无 `src/host` 宿主边界、无统一指令注册表，三套“指令→执行”分发并存。抽取过程忠实（与原 1.46 单文件逐段一致），未引入行为回归，但也原样保留了 1.46 的既有缺陷。
+本分支（`main..dev`，31 个提交）完成的是“原样抽出 + 缺陷修复”两段式重构：入口 `main.js` 收口为 3 行，叶子模块拆到 `src/`，执行引擎（解析、执行、断点、切队编排）留在 `src/app/main.js`。抽取过程逐段对照原 1.46 单文件，未引入行为回归；三个会直接崩溃的缺陷（`captureRegion` 未声明、`context` 当路径传入、`extractedName` 被 `[]` 覆盖）已修复。
 
-本清单只列本次要修复的问题；未列入的问题暂不修复，见第四节。
+剩余问题分两类：
+
+1. 1.46 就存在的缺陷（编号 1、2、3、5、6、7、8、9、10）；
+2. 重构过程中暴露的可读性/一致性问题（编号 11、12、13、14）。
+
+本清单只列本次要修复的问题；未列入的问题暂不修复，见第六节。
 
 ## 二、待修复问题
 
 | 编号 | 位置 | 现状问题 | 修复方案 |
 |---|---|---|---|
-| 1 | `src/steps/navigator.js:134` | `autoNavigateToIcon` 内 `captureRegion = captureGameRegion()` 未声明；ES module 严格模式下赋未声明变量抛 ReferenceError，`追踪图标` 必失败 | 改为 `let captureRegion = captureGameRegion()`（释放交由第 8 项） |
-| 4 | `src/flow/step-processor-factory.js:50`、`src/steps/step-processor.js:174` | `processWaitMainUI()` 无参调用，`for (i < undefined)` 不循环，JSON 流程“等待返回主界面”实际不等待 | 签名改为 `processWaitMainUI(time = 600)`，factory 传 `step.data` |
-| 5 | `src/steps/dialog-processor.js:8`、`src/steps/dialog-step.js:18`、`src/app/main.js:880` | `executeOptimizedAutoTalk` 的 `extractedName` 入参实际不需要；函数内 `extractedName = []` 覆盖，导致 `text.includes([])` 恒真、误点第一个选项 | 删除 `extractedName` 形参，函数内改为局部 `let extractedName = null`，两处调用同步去掉 `null` 实参 |
-| 7 | `src/flow/step-processor-factory.js`、`src/app/main.js` | JSON 流程 `地图追踪`/`键鼠脚本` 把 `context`（对象）当 `processFilePath` 传入，`context.replace` 抛错；`tp` 引用不存在的 `processTeleport`，`长按` 引用 `data.step`/`keyup`/`longpressthebutton` 均不存在 | `executeUnifiedTalkProcess` 把流程路径写入 `context.processPath`，factory 改传 `context.processPath`；删除 `tp`、`长按` 两个必错处理器 |
-| 8 | `src/common/utils.js`、`src/common/main-ui.js`、`src/steps/navigator.js`、`src/steps/step-processor.js` | `captureGameRegion()` 结果多处不 `dispose`；`easyOCR` 在对话/13 秒循环中高频调用，持续泄漏 | `easyOCR` 用 try/finally 释放截图；`isInMainUI` 释放；navigator 每轮截图与 `DeriveCrop` 按“先子后父”释放；`processSwitchRole` 的截图统一局部变量并 finally 释放 |
-| 9 | `src/app/main.js:937`、`src/app/switch-party.js:16` | 脚本完成用 `notification.error`（错误级别）；切队错误通知未受 `settings.xiaoxitongzhi` 开关控制 | 完成改 `notification.Send`；切队错误通知加开关判断 |
-| 12 | `manifest.json:15-17` | 断点写入 `resuming/<相对路径>.json`（嵌套），而 `saved_files: ["resuming/*.json"]` 只匹配一层，升级脚本时断点不备份 | `saved_files` 改为 `["resuming/"]`，按目录递归备份 |
-| 13 | `src/app/main.js:36-46` | `file.readText` 读取失败返回空串、不抛异常，“未找到流程文件”catch 为死代码；空文件会静默走空流程 | 读取后判空，空内容按出错记录并 `return false` |
-| 15 | `src/app/main.js:338` | `调时间` 写死小写 `data/time.json`，实际文件是 `Data/time.json`（仅 Windows 大小写不敏感可用） | 改为 `Data/time.json` |
-| 16 | `src/steps/dialog-processor.js:56,299` | 日志占位符 `位置({x},{y},{h},{w})` 与实际传参 `width,height` 顺序不符 | 统一为 `{w},{h}` 并正确传 `width,height` |
-| 18 | `src/app/main.js:17` | `relativePath` 是模块级可变外部状态，`Main` 赋值、执行器读取，属隐式耦合 | 删除模块级变量，改为 `Main` 计算 `resumeRelativePath` 并显式传给 `executeTalkCommission`/`executeSimpleScriptFlow` |
-| 19 | `src/common/main-ui.js` 与 `src/common/ui-utils.js`、`src/app/main.js`、`src/steps/dialog-processor.js`、`src/steps/navigator.js` | 重复实现：两套主界面检测；`groupMap`/`resumingMap` 重复构建；两套对话中相同的“白名单/人名点击选项”代码；两段相同的“前进一小步”代码 | 删除 `createMainUIChecker`，统一 `main-ui.js` 的 `isInMainUI`；抽 `buildBlockIndex()`；抽公共点击选项函数；抽 `advanceStep()`（其余差异保留） |
-| 20 | `src/app/main.js:343,622` | 未使用的 `keyData`；注释掉的 `processAutoTask` 调用 | 删除 |
-| 21 | `Data/暂停.json`、`Data/RecognitionObject/SwitchRoles/` | 全仓库（`自动剧情加载器` 内）无引用 | 删除 |
-| 22 | `src/app/main.js:11-23` | `VERSION`/`BUILD_TIME` 与 `manifest.version` 双写 | 版本号统一从 `manifest.json` 读取，删除 `BUILD_TIME` 与编译时间日志 |
-| 23 | `src/app/main.js`、`step-processor-factory.js`、`step-processor.js`、`dialog-step.js`、`navigator.js` 及各模块顶层 | Tab 与 2 空格混用、行尾空白、模块顶层残留 IIFE 缩进 | Tab→2 空格、去行尾空白、模块顶层去掉多余缩进（仅空白改动） |
-| 24 | `picker.js` 位置、`src/app/main.js:1` | `picker.js` 仍在脚本根目录，导入为裸说明符 `"picker.js"`，与其它相对导入不一致 | `picker.js` 迁入 `src/picker/picker.js`，导入改为 `../picker/picker.js` |
+| 1 | `src/app/main.js:862-868` | `processStringStep` 引用未声明的模块级变量 `process_path`，且 `processMapTracking(step, …)` 把字符串当路径容器传入，`step.data` 恒为 `undefined` | 改为 `processMapTracking({ data: step }, context.processPath)`，删除对 `process_path` 的引用 |
+| 2 | `src/steps/navigator.js:158-169` | `IconRos` 为空时 `iconRes` 保持 `undefined`，`iconRes.isEmpty()` 抛 TypeError。`Data/RecognitionObject/Icon/` 下无 `Question`/`Task`/`Into` 匹配文件，`追踪图标 Question` 等调用必崩 | 改为 `if (!iconRes \|\| iconRes.isEmpty())` |
+| 3 | `src/steps/navigator.js:169-180` | 未检测到图标时先 `continue`，导致 `consecutiveFailCount > 5` 与 `i > 50` 两个退出条件均不可达，实际是无限重试 | 把计数判断移到 `continue` 之前 |
+| 5 | `src/app/main.js:892-931` | `Main` 异常路径不清理实时任务，`AutoPick`/`AutoEat`/`AutoSkip` 残留到下一个脚本 | `Main` 改 `try/catch/finally`，`finally` 中复位实时任务 |
+| 6 | `src/app/main.js:393-399` | `new KeyMouseHook()` 抛错时 `hook` 为 `null`，`finally` 里 `hook.dispose()` 二次抛错，掩盖原始错误 | `if (hook) hook.dispose();` |
+| 7 | `src/steps/step-processor.js:283-316` | `for (let num = 1; ; num++)` 无上界，靠 `ReadImageMatSync` 对缺失文件返回空 `Mat` 后 `Cv2.CvtColor` 抛异常才退出；且漏掉 `可莉.png`、`达达利亚.png` 这类无数字后缀文件 | 改用 `file.ReadPathSync("Data/characterimage/")` 列目录，按“文件名以角色名开头”筛选后遍历 |
+| 8 | `src/app/main.js:352-365` | `自动拾取 关闭` 调 `ClearAllTriggers()` 连带关掉 `AutoSkip`/`AutoEat`；`开启` 走 `AddTrigger` 重复叠加。流程文件里 23 处 `关闭`、6 处 `开启` | 引入实时任务状态记录，关闭只撤 `AutoPick` |
+| 9 | `src/steps/step-processor.js:360-399` | `自动任务 disable` 全局清空触发器；`enable` 误用 `dispatcher.addTimer`（`addTimer` 会先清空全部再添加，与“叠加”语义相反） | 与第 8 项共用状态模块；`enable` 校验 `taskType` 白名单 |
+| 10 | `src/steps/step-processor.js:86` | `data = String(data)` 在类型判断之前执行，`typeof data === "object"` 分支恒不可达，对象格式按键实际不支持 | 把字符串化挪进字符串分支，恢复对象分支可达 |
+| 11 | `src/app/main.js:186` | `parseInt(arg \|\| "600", 10) \|\| 120`：显式写 `等待返回主界面 0` 会变 120，且 120/600 两个默认值并存 | 统一为 600，仅当解析结果为正数时采用 |
+| 12 | `src/app/main.js:325-332` | `追踪委托` 的 `if/else` 两个分支代码完全相同 | 合并为单一判断 |
+| 13 | `src/steps/dialog-processor.js:128-168` | `if (true) { … }` 恒真外壳包裹整段对话选项识别 | 删除外壳并降一级缩进 |
+| 14 | `src/flow/step-processor-factory.js:60-63` | `registerStepProcessor` 导出但全仓库无调用点 | 保留。见第四节说明 |
 
-## 三、关键上游核实（与第 7/8/9/12 项相关）
+## 三、关键上游核实
 
-- `Notification` 提供 `Send`（成功通知）与 `Error`（错误通知）（`Notification.cs:68,93`）。
-- `AutoPathingScript.RunFile(string)`、`KeyMouseScript.RunFile(string)` 均存在（`AutoPathingScript.cs:44`、`KeyMouseScript.cs:13`）；`StepProcessor` 确无 `processTeleport`/`longpressthebutton`，故第 7 项只是传参错误与无效处理器。
-- `Region.Derive` 返回无 Mat 的 `Region`（`Region.cs:348-351`，`Dispose` 为空实现），`ImageRegion.DeriveCrop` 返回共享父 Mat 的视图（`ImageRegion.cs:71-79`），`ImageRegion.Dispose` 会释放 `SrcMat`（`ImageRegion.cs:581-593`）：释放顺序须先子区域、后父截图；`easyOCR`/`Find` 返回的 `Region` 不含 Mat，可安全在 `finally` 释放截图。
-- `ScriptRepoUpdater.BackupScriptFiles` 对以 `/` 结尾的 `saved_files` 走 `CopyDirectory` 递归备份（`ScriptRepoUpdater.cs:3174-3197`）；`GetMatchedFiles` 对 `resuming/*.json` 使用非递归 `Directory.GetFiles`（`ScriptRepoUpdater.cs:3073-3095`）。
-- 断点确会写嵌套路径：`Main` 由 `picked.path` 去掉 `process/` 前缀得到 `relativePath`，恒含一级以上目录；`resuming/` 现有样例即多层（如 `resuming/世界任务/溯流的变奏曲@正夢/溯流的变奏曲/process.json`）。
+- `LimitedFile.ReadPathSync(dir)` 非递归列出目录内容，返回**相对脚本根**的路径；目录不存在时返回空数组（`LimitedFile.cs:22-52`）。
+- `LimitedFile.ReadImageMatSync` 读取失败时**返回空 `Mat`、不抛异常**（`LimitedFile.cs:213-228`）。第 7 项正是因此改为先列目录再读图。
 - `LimitedFile.ReadText` 读取失败返回空串、不抛异常（`LimitedFile.cs:170-184`）。
+- `Dispatcher` 只提供 `AddTrigger`（追加到启用名单）与 `ClearAllTriggers`（整体清空），**没有按名移除**（`Dispatcher.cs:71,82`）。因此“只关 AutoPick、保留 AutoSkip/AutoEat”只能靠“记录状态 → 全清 → 按状态重建”。
+- `TaskTriggerDispatcher.ScriptTriggerTypes` 白名单只有 `AutoPick`、`AutoSkip`、`AutoEat`（`TaskTriggerDispatcher.cs:59-64`），其它名字会抛 `ArgumentException`。
+- `Notification` 提供 `Send`（成功）与 `Error`（错误）（`Notification.cs:68,93`）。
+- `Region.Dispose` 为空实现，`Find`/`FindMulti`/`Derive` 返回的 `Region` 不含 Mat，可安全在 `finally` 中释放截图；`ImageRegion.DeriveCrop` 返回共享父 Mat 的视图，释放顺序须先子后父（`Region.cs:313-316`、`ImageRegion.cs:71-79,581-593`）。
+- `ScriptProject.ExecuteAsync` 检测到代码含 `import `/`export ` 即按 ES 模块执行并 `await` 返回的 Task；ClearScript 7.4.5 的 `V8Settings.EnableTopLevelAwait` 标注为“V8 no longer supports Top-Level Await control. The feature is always enabled.”，入口的顶层 `await Main()` 可用。
+- `ScriptRepoUpdater.BackupScriptFiles` 对以 `/` 结尾的 `saved_files` 走 `CopyDirectory` 递归备份，`RestoreScriptFiles` 用 `SearchOption.AllDirectories` 回填（`ScriptRepoUpdater.cs:2630-2650`）。
+- `AutoPathingScript.RunFile(string)`、`KeyMouseScript.RunFile(string)` 均存在（`AutoPathingScript.cs:44`、`KeyMouseScript.cs:13`）。
 
-## 四、本次不修复的问题
+## 四、关于第 14 项（保留 `registerStepProcessor`）
 
-以下问题已识别，但本次不处理：
+`registerStepProcessor` 是“运行时新增步骤类型”的注册入口，当前无调用点，原因如下：
 
-- 2：角色图探测死循环（`src/steps/step-processor.js`）。
-- 3：`processStringStep` 引用未定义的 `process_path`（`src/app/main.js`）。
-- 6：暂停 `finally` 中 `hook` 可能为 null 的二次抛错（`src/app/main.js`）。
-- 10：出错路径未 `ClearAllTriggers`（`src/app/main.js`）。
-- 11：`自动拾取 关闭`/`自动任务 disable` 全局清空触发器、`自动拾取 开启` 叠加触发器。
-- 14：硬编码 1920×1080。
-- 17：`easyOCR` 成功/失败返回结构不一致。
-- 25：`.gitignore`、`AGENTS.md`、`refactor-plan.md` 仍为未跟踪文件。
+1. `键鼠脚本` 不经过它。工厂中 `键鼠脚本` 是静态键，直接调用 `processKeyMouseScript` → 宿主对象 `keyMouseScript.runFile(路径)`，执行的是录制的键鼠 JSON，与“注册步骤类型”是两件事。
+2. 本脚本没有任何地方在运行时新增步骤类型，因此注册函数自然无调用者。
+
+结论：保留并继续导出。它是后续若要补齐 JSON 流程缺失步骤类型（`战斗`、`暂停`、`任务完成`）时的天然入口，删除后仍需加回。
+
+## 五、已修复记录（本分支，勿重复排查）
+
+以下 1.46 缺陷已在本分支修复完毕，保留记录仅为避免后人重复排查：
+
+- `autoNavigateToIcon` 内 `captureRegion` 未声明（ES module 严格模式下抛 ReferenceError）。
+- `processWaitMainUI()` 无参调用导致 JSON 流程“等待返回主界面”不等待。
+- `executeOptimizedAutoTalk` 的 `extractedName` 形参被函数体内 `= []` 覆盖，`text.includes([])` 恒真导致误点第一个选项。
+- JSON 流程 `地图追踪`/`键鼠脚本` 把 `context` 对象当 `processFilePath` 传入。
+- `tp`、`长按` 两个引用不存在函数的无效步骤处理器。
+- `captureGameRegion()` 结果多处不 `dispose`，`easyOCR` 高频调用持续泄漏。
+- 脚本完成用 `notification.error`（错误级别）；切队错误通知未受 `settings.xiaoxitongzhi` 控制。
+- `saved_files: ["resuming/*.json"]` 只匹配一层，嵌套断点不被备份。
+- 流程文件读取失败返回空串不抛异常，“未找到流程文件”分支为死代码。
+- `调时间` 写死小写 `data/time.json`。
+- 对话日志占位符 `位置({x},{y},{h},{w})` 与实际传参顺序不符。
+- `relativePath` 模块级可变外部状态（已改为显式参数 `resumeRelativePath`）。
+- 重复实现：两套主界面检测、`groupMap`/`resumingMap` 重复构建、两段相同的选项点击代码、两段相同的“前进一小步”。
+- 未使用的 `keyData`、注释掉的 `processAutoTask` 调用。
+- `VERSION`/`BUILD_TIME` 与 `manifest.version` 双写（已改为只读 `manifest.json`）。
+- Tab 与 2 空格混用、行尾空白。
+- `picker.js` 位于脚本根目录、以裸说明符导入（已迁入 `src/picker/`）。
+
+## 六、本次不修复的问题
+
+- `manifest.json` 中 `tags`、`allow_js_notification` 不在 `Manifest` 模型里；`authors[].links` 与 `Author.Link` 不匹配，作者链接被静默丢弃。
+- `manifest.json` 缺行尾换行；`saved_files` 语义变更后未提升 `version`。
+- JSON 流程格式缺失 `战斗`、`暂停`、`任务完成`、`完成任务` 四个步骤类型（1.46 遗留的双分发器覆盖差异，非本次重构引入）。
+- 硬编码 1920×1080。
+- `easyOCR` 成功/失败返回结构不一致。
+- `.gitignore`、`AGENTS.md`、`refactor-plan.md` 仍为未跟踪文件。
