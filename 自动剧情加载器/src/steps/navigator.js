@@ -166,7 +166,8 @@ export async function autoNavigateToIcon(iconType = "Bigmap") {
               break;
             }
           }
-          if (iconRes.isEmpty()) {
+          // IconRos 为空时 iconRes 仍为 undefined，不能直接调用 isEmpty
+          if (!iconRes || iconRes.isEmpty()) {
             log.info("未检测到图标，重试");
             consecutiveFailCount++;
             keyPress("V");
