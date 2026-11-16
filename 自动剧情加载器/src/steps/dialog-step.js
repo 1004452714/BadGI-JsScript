@@ -1,4 +1,4 @@
-import { DialogProcessor } from "./dialog-processor.js";
+import { executeOptimizedAutoTalk } from "./dialog-processor.js";
 
 // 处理对话步骤
 export async function processDialogStep(step, priorityOptions, npcWhiteList, isInMainUI) {
@@ -15,7 +15,7 @@ export async function processDialogStep(step, priorityOptions, npcWhiteList, isI
   }
 
   // 执行对话，使用当前步骤的优先选项和NPC白名单
-  await DialogProcessor.executeOptimizedAutoTalk(
+  await executeOptimizedAutoTalk(
     skipCount,
     priorityOptions,
     npcWhiteList,
