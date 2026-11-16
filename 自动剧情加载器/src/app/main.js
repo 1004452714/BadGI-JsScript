@@ -862,10 +862,7 @@ async function processStep(step, context) {
 async function processStringStep(step, context) {
   if (step.endsWith(".json")) {
     // 地图追踪文件
-    await processMapTracking(
-      step,
-      process_path
-    );
+    await processMapTracking({ data: step }, context.processPath);
   } else if (step === "F") {
     // 按F键并执行优化的自动剧情
     log.info("执行自动剧情");
