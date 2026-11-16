@@ -331,7 +331,7 @@ import { switchPartyIfNeeded } from "./switch-party.js";
           }
           case "调时间":{
             await sleep(1000);//等待任务弹出
-            let filePath = `data/time.json`;
+            let filePath = `Data/time.json`;
             await keyMouseScript.runFile(filePath);
             break;
           }
