@@ -3,33 +3,33 @@
 
 // 文件夹读取函数（优化版）
 async function readFolder(folderPath, onlyJson) {
-    const folderStack = [folderPath];
-    const files = [];
+  const folderStack = [folderPath];
+  const files = [];
 
-    while (folderStack.length > 0) {
-        const currentPath = folderStack.pop();
-        const items = file.ReadPathSync(currentPath);
-        const subFolders = [];
+  while (folderStack.length > 0) {
+    const currentPath = folderStack.pop();
+    const items = file.ReadPathSync(currentPath);
+    const subFolders = [];
 
-        for (const itemPath of items) {
-            if (file.IsFolder(itemPath)) {
-                subFolders.push(itemPath);
-            } else if (!onlyJson || itemPath.toLowerCase().endsWith(".json")) {
-                const pathParts = itemPath.split(/[\\\/]/).filter(Boolean);
-                const fileName = pathParts.pop();
-                files.push({
-                    fullPath: itemPath,
-                    fileName: fileName,
-                    folderPathArray: pathParts
-                });
-            }
-        }
-
-        // 保持原始顺序添加子文件夹
-        folderStack.push(...subFolders.reverse());
+    for (const itemPath of items) {
+      if (file.IsFolder(itemPath)) {
+        subFolders.push(itemPath);
+      } else if (!onlyJson || itemPath.toLowerCase().endsWith(".json")) {
+        const pathParts = itemPath.split(/[\\\/]/).filter(Boolean);
+        const fileName = pathParts.pop();
+        files.push({
+          fullPath: itemPath,
+          fileName: fileName,
+          folderPathArray: pathParts
+        });
+      }
     }
 
-    return files;
+    // 保持原始顺序添加子文件夹
+    folderStack.push(...subFolders.reverse());
+  }
+
+  return files;
 }
 
 const PICKER_ROOT = "process";
