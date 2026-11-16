@@ -7,6 +7,7 @@ import { switchPartyIfNeeded } from "./src/app/switch-party.js";
 import { autoNavigateToTalk, autoNavigateToIcon } from "./src/steps/navigator.js";
 import { StepProcessor } from "./src/steps/step-processor.js";
 import { DialogProcessor } from "./src/steps/dialog-processor.js";
+import { processDialogStep } from "./src/steps/dialog-step.js";
 
 (async function () {
   // 版本和编译信息
@@ -110,30 +111,6 @@ import { DialogProcessor } from "./src/steps/dialog-processor.js";
   };
 
   // UI工具模块 - 处理UI检测和文本提取等工具函数
-  // 处理对话步骤
-  async function processDialogStep(step, priorityOptions, npcWhiteList, isInMainUI) {
-      log.info("执行对话");
-      let skipCount = 2; // 默认跳过2次
-      
-      // 处理对话选项
-      if (typeof step.data === "number") {
-        // 兼容旧版本，如果data是数字，则视为skipCount
-        skipCount = step.data;
-      } else if (typeof step.data === "object" && step.data.skipCount) {
-        // 新版本，data是对象，包含skipCount
-        skipCount = step.data.skipCount;
-      }
-
-      // 执行对话，使用当前步骤的优先选项和NPC白名单
-      await DialogProcessor.executeOptimizedAutoTalk(
-        null,
-        skipCount,
-        priorityOptions,
-        npcWhiteList,
-        isInMainUI
-      );
-  }
-
   const Execute = {
     // 寻找委托目的地址带追踪任务
     // 读取并解析流程文件为步骤数组
