@@ -183,9 +183,12 @@ function parseExtendedSimpleScript(content) {
       case "交互":
         pushInstr("交互", arg);
         break;
-      case "等待返回主界面":
-        pushInstr("等待返回主界面", parseInt(arg || "600", 10) || 120);
+      case "等待返回主界面": {
+        // 秒数只取正数，缺省或非法值统一回落到 600
+        const waitSeconds = parseInt(arg, 10);
+        pushInstr("等待返回主界面", waitSeconds > 0 ? waitSeconds : 600);
         break;
+      }
       case "追踪图标":
         pushInstr("追踪图标", arg);
         break;
