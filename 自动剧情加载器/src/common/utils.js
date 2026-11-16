@@ -1,18 +1,18 @@
   export const Utils = {
     easyOCR: async ({ X, Y, WIDTH, HEIGHT }) => {
+      let captureRegion = null;
       try {
-        // log.info("进行文字识别")
         // 创建OCR识别对象
         const locationOcrRo = RecognitionObject.Ocr(X, Y, WIDTH, HEIGHT);
 
-        // 截图识别
-        let captureRegion = captureGameRegion();
-        let OCRresults = await captureRegion.findMulti(locationOcrRo);
-
-        return OCRresults;
+        // 截图识别；返回的 Region 列表不含 Mat，可在 finally 释放截图
+        captureRegion = captureGameRegion();
+        return await captureRegion.findMulti(locationOcrRo);
       } catch (error) {
         log.error("easyOCR识别出错: {error}", error.message);
         return { count: 0 };
+      } finally {
+        if (captureRegion) captureRegion.dispose();
       }
     },
     // 清理文本（去除标点符号等）

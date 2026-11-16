@@ -19,7 +19,11 @@ const exitBtnRo = RecognitionObject.TemplateMatch(
 // 判断是否在主界面的函数
 export const isInMainUI = () => {
   let captureRegion = captureGameRegion();
-  let res = captureRegion.Find(paimonMenuRo)
-  let res2 = captureRegion.Find(exitBtnRo);
-  return !res.isEmpty() || !res2.isEmpty();
+  try {
+    let res = captureRegion.Find(paimonMenuRo);
+    let res2 = captureRegion.Find(exitBtnRo);
+    return !res.isEmpty() || !res2.isEmpty();
+  } finally {
+    captureRegion.dispose();
+  }
 };

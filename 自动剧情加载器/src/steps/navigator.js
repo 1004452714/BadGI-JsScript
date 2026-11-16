@@ -41,34 +41,44 @@
           // 1. 优先检查是否已到达
           await sleep(500);// 等待0.5秒
           let captureRegion = captureGameRegion();
-          let rewardTextArea = captureRegion.DeriveCrop(1210, 515, 200, 50);
-          let rewardResult = rewardTextArea.find(RecognitionObject.ocrThis);
-          log.debug("检测到文字: " + rewardResult.text);
-          // 检测到特点文字则结束！！！
-          if (rewardResult.text == textArray) {
-            log.info("已到达指定位置，检测到文字: " + rewardResult.text);
-            return;
-          } else if (advanceNum > 80) {
-            throw new Error("前进时间超时");
+          let rewardTextArea = null;
+          try {
+            rewardTextArea = captureRegion.DeriveCrop(1210, 515, 200, 50);
+            let rewardResult = rewardTextArea.find(RecognitionObject.ocrThis);
+            log.debug("检测到文字: " + rewardResult.text);
+            // 检测到特点文字则结束！！！
+            if (rewardResult.text == textArray) {
+              log.info("已到达指定位置，检测到文字: " + rewardResult.text);
+              return;
+            } else if (advanceNum > 80) {
+              throw new Error("前进时间超时");
+            }
+          } finally {
+            if (rewardTextArea) rewardTextArea.dispose();
+            captureRegion.dispose();
           }
           // 2. 未到达领奖点，则调整视野
           for (let i = 0; i < 100; i++) {
-            captureRegion = captureGameRegion();
-            let iconRes = captureRegion.Find(boxIconRo);
-            log.info("检测到委托图标位置 ({x}, {y})", iconRes.x, iconRes.y);
-            if (iconRes.x >= 920 && iconRes.x <= 980 && iconRes.y <= 540) {
-              advanceNum++;
-              log.info(`视野已调正，前进第${advanceNum}次`);
-              break;
-            } else {
-              // 小幅度调整
-              if (iconRes.y >= 520) moveMouseBy(0, 920);
-              let adjustAmount = iconRes.x < 920 ? -20 : 20;
-              let distanceToCenter = Math.abs(iconRes.x - 920); // 计算与920的距离
-              let scaleFactor = Math.max(1, Math.floor(distanceToCenter / 50)); // 根据距离缩放，最小为1
-              let adjustAmount2 = iconRes.y < 540 ? scaleFactor : 10;
-              moveMouseBy(adjustAmount * adjustAmount2, 0);
-              await sleep(100);
+            const adjustRegion = captureGameRegion();
+            try {
+              let iconRes = adjustRegion.Find(boxIconRo);
+              log.info("检测到委托图标位置 ({x}, {y})", iconRes.x, iconRes.y);
+              if (iconRes.x >= 920 && iconRes.x <= 980 && iconRes.y <= 540) {
+                advanceNum++;
+                log.info(`视野已调正，前进第${advanceNum}次`);
+                break;
+              } else {
+                // 小幅度调整
+                if (iconRes.y >= 520) moveMouseBy(0, 920);
+                let adjustAmount = iconRes.x < 920 ? -20 : 20;
+                let distanceToCenter = Math.abs(iconRes.x - 920); // 计算与920的距离
+                let scaleFactor = Math.max(1, Math.floor(distanceToCenter / 50)); // 根据距离缩放，最小为1
+                let adjustAmount2 = iconRes.y < 540 ? scaleFactor : 10;
+                moveMouseBy(adjustAmount * adjustAmount2, 0);
+                await sleep(100);
+              }
+            } finally {
+              adjustRegion.dispose();
             }
             if (i > 50) throw new Error("视野调整超时");
           }
@@ -131,54 +141,54 @@
         while (true) {
           // 调整视野
           for (let i = 0; i < 100; i++) {
-            let captureRegion = captureGameRegion();
-
-            // 检测进入对话
-            let inTalk = captureRegion.Find(inTalkRO);
-            if (inTalk.isExist()) {
-              log.info("已进入对话，停止前进");
-              return;
-            }
-
-            let iconRes
-            for (let boxIconRo of IconRos) {
-              iconRes = captureRegion.Find(boxIconRo);
-              if (iconRes.isEmpty()) {
-                continue;
-              } else {
-                iconRes.DrawSelf("debug")
-                consecutiveFailCount = 0
-                break
+            const captureRegion = captureGameRegion();
+            try {
+              // 检测进入对话
+              let inTalk = captureRegion.Find(inTalkRO);
+              if (inTalk.isExist()) {
+                log.info("已进入对话，停止前进");
+                return;
               }
-            }
-            if (iconRes.isEmpty()) {
-              log.info("未检测到图标，重试");
-              consecutiveFailCount++;
+
+              let iconRes;
+              for (let boxIconRo of IconRos) {
+                iconRes = captureRegion.Find(boxIconRo);
+                if (iconRes.isEmpty()) {
+                  continue;
+                } else {
+                  iconRes.DrawSelf("debug");
+                  consecutiveFailCount = 0;
+                  break;
+                }
+              }
+              if (iconRes.isEmpty()) {
+                log.info("未检测到图标，重试");
+                consecutiveFailCount++;
+                keyPress("V");
+                await sleep(1000);
+                continue;
+              }
+              //连续多次未检测到图标，停止前进
+              if (consecutiveFailCount > 5) {
+                log.info("连续5次未检测到图标，停止前进");
+                return;
+              }
+              if (iconRes.x >= 920 && iconRes.x <= 980 && iconRes.y <= 540) {
+                advanceNum++;
+                break;
+              } else {
+                // 小幅度调整
+                if (iconRes.y >= 520) moveMouseBy(0, 920);
+                let adjustAmount = iconRes.x < 920 ? -20 : 20;
+                let distanceToCenter = Math.abs(iconRes.x - 960); // 计算与920的距离
+                let scaleFactor = Math.max(1, Math.floor(distanceToCenter / 20)); // 根据距离缩放，最小为1
+                let adjustAmount2 = iconRes.y < 540 ? scaleFactor : 10;
+                moveMouseBy(adjustAmount * adjustAmount2, 0);
+                await sleep(100);
+              }
+            } finally {
               captureRegion.dispose();
-              keyPress("V");
-              await sleep(1000);
-              continue;
             }
-            //连续多次未检测到图标，停止前进
-            if (consecutiveFailCount > 5) {
-              log.info("连续5次未检测到图标，停止前进");
-              captureRegion.dispose();
-              return;
-            }
-            if (iconRes.x >= 920 && iconRes.x <= 980 && iconRes.y <= 540) {
-              advanceNum++;
-              break;
-            } else {
-              // 小幅度调整
-              if (iconRes.y >= 520) moveMouseBy(0, 920);
-              let adjustAmount = iconRes.x < 920 ? -20 : 20;
-              let distanceToCenter = Math.abs(iconRes.x - 960); // 计算与920的距离
-              let scaleFactor = Math.max(1, Math.floor(distanceToCenter / 20)); // 根据距离缩放，最小为1
-              let adjustAmount2 = iconRes.y < 540 ? scaleFactor : 10;
-              moveMouseBy(adjustAmount * adjustAmount2, 0);
-              await sleep(100);
-            }
-            captureRegion.dispose();
             if (i > 50) throw new Error("视野调整超时");
           }
           // 3. 前进一小步

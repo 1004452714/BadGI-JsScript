@@ -3,6 +3,16 @@ import { UI } from "../common/ui.js";
 import { isInMainUI } from "../common/main-ui.js";
 import { autoNavigateToTalk } from "./navigator.js";
 
+// 截图查找后立即释放截图；返回的 Region 不含 Mat，可继续使用其坐标与文本
+const findInGameScreen = (ro) => {
+  const captureRegion = captureGameRegion();
+  try {
+    return captureRegion.find(ro);
+  } finally {
+    captureRegion.dispose();
+  }
+};
+
   // 步骤处理器类 - 处理不同类型的委托执行步骤
   // TAG:添加脚本功能点1
   export const StepProcessor = {
@@ -239,7 +249,7 @@ processKeyPress: async (step) => {
           while (openPairingTries < 3) {
             keyPress("l");
             await sleep(3500);
-            const teamConfigResult = captureGameRegion().find(roTeamConfig);
+            const teamConfigResult = findInGameScreen(roTeamConfig);
             if (teamConfigResult.isExist()) {
               openPairingTries = 0;
               return true;
@@ -286,7 +296,7 @@ processKeyPress: async (step) => {
                 1920,
                 1080
               );
-              const characterResult = captureGameRegion().find(characterRo);
+              const characterResult = findInGameScreen(characterRo);
               if (characterResult.isExist()) {
                 log.info(`已找到角色${selectedCharacter}`);
                 // 计算向右偏移35像素、向下偏移35像素的位置
@@ -326,8 +336,8 @@ processKeyPress: async (step) => {
         }
 
         // 识别"更换"或"加入"按钮
-        const replaceResult = captureGameRegion().find(roReplace);
-        const joinResult = captureGameRegion().find(roJoin);
+        const replaceResult = findInGameScreen(roReplace);
+        const joinResult = findInGameScreen(roJoin);
 
         if (replaceResult.isExist() || joinResult.isExist()) {
           await sleep(300);
