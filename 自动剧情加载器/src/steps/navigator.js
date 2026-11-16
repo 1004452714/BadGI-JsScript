@@ -168,16 +168,16 @@ export async function autoNavigateToIcon(iconType = "Bigmap") {
           }
           // IconRos 为空时 iconRes 仍为 undefined，不能直接调用 isEmpty
           if (!iconRes || iconRes.isEmpty()) {
-            log.info("未检测到图标，重试");
             consecutiveFailCount++;
+            //连续多次未检测到图标，停止前进；必须在 continue 之前判断，否则永远不可达
+            if (consecutiveFailCount > 5) {
+              log.info("连续5次未检测到图标，停止前进");
+              return;
+            }
+            log.info("未检测到图标，重试");
             keyPress("V");
             await sleep(1000);
             continue;
-          }
-          //连续多次未检测到图标，停止前进
-          if (consecutiveFailCount > 5) {
-            log.info("连续5次未检测到图标，停止前进");
-            return;
           }
           if (iconRes.x >= 920 && iconRes.x <= 980 && iconRes.y <= 540) {
             advanceNum++;
