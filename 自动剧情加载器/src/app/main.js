@@ -1,4 +1,4 @@
-import { chooseProcess } from "picker.js";
+import { chooseProcess } from "../picker/picker.js";
 import { Utils } from "../common/utils.js";
 import { UIUtils } from "../common/ui-utils.js";
 import { StepProcessor } from "../steps/step-processor.js";
