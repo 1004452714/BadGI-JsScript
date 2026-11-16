@@ -1,6 +1,7 @@
 import { chooseProcess } from 'picker.js';
 import { Utils } from "./src/common/utils.js";
 import { UI } from "./src/common/ui.js";
+import { isInMainUI } from "./src/common/main-ui.js";
 
 (async function () {
   // 版本和编译信息
@@ -18,32 +19,6 @@ import { UI } from "./src/common/ui.js";
     log.info("编译时间: {buildTime}", BUILD_TIME);
     log.info("=".repeat(20));
   }
-
-// 定义识别对象
-
-const paimonMenuRo = RecognitionObject.TemplateMatch(
-  file.ReadImageMatSync("Data/RecognitionObject/paimon_menu.png"),
-  0,
-  0,
-  genshin.width / 3.0,
-  genshin.width / 5.0
-);
-//新增识别退出按钮
-const exitBtnRo = RecognitionObject.TemplateMatch(
-  file.ReadImageMatSync("Data/RecognitionObject/exitbtn.png"),
-  0,
-  0,
-  genshin.width / 3.0,
-  genshin.width / 5.0
-);
-
-// 判断是否在主界面的函数
-const isInMainUI = () => {
-  let captureRegion = captureGameRegion();
-  let res = captureRegion.Find(paimonMenuRo)
-  let res2 = captureRegion.Find(exitBtnRo);
-  return !res.isEmpty() || !res2.isEmpty();
-};
 
   // 步骤处理器类 - 处理不同类型的委托执行步骤
   // TAG:添加脚本功能点1
