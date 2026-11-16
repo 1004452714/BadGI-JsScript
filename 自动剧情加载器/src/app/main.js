@@ -14,7 +14,6 @@ import { switchPartyIfNeeded } from "./switch-party.js";
   // 读取设置
   const team = settings.team || "";
   const elementTeam = settings.elementTeam || "";
-  let relativePath;
   async function errorlog() {
     // 输出版本和编译时间信息
     log.info("=".repeat(20));
@@ -240,7 +239,7 @@ import { switchPartyIfNeeded } from "./switch-party.js";
     },
 
     // 执行扩展的简单格式脚本
-    executeSimpleScriptFlow: async (simpleScript, process_path) => {
+    executeSimpleScriptFlow: async (simpleScript, process_path, resumeRelativePath) => {
       const isInMainUI = UIUtils.createMainUIChecker();
       const META = simpleScript.meta || {};
       const BLOCKS = Array.isArray(simpleScript.blocks) ? simpleScript.blocks : [];
@@ -630,7 +629,7 @@ import { switchPartyIfNeeded } from "./switch-party.js";
 
           log.info("当前流程执行完毕，更新断点文件");
           defaultBlock.instructions.splice(0, 1);
-          file.writeTextSync(`resuming/${relativePath}`, JSON.stringify(simpleScript, null, 2));
+          file.writeTextSync(`resuming/${resumeRelativePath}`, JSON.stringify(simpleScript, null, 2));
           if (res === "DONE") {
             log.info("收到任务完成指令，任务完成");
             return true;
@@ -664,7 +663,7 @@ import { switchPartyIfNeeded } from "./switch-party.js";
             const descriptionNorms = Array.from(resumingMap.keys());
             const blocks = descriptionNorms.flatMap(norm => resumingMap.get(norm));
             const simpleScript = { meta: META,blocks: blocks};
-            file.writeTextSync(`resuming/${relativePath}`, JSON.stringify(simpleScript, null, 2));
+            file.writeTextSync(`resuming/${resumeRelativePath}`, JSON.stringify(simpleScript, null, 2));
           } catch (error) {
             log.error(`更新断点文件时出错{error}`, error.message);
             break;
@@ -720,7 +719,7 @@ import { switchPartyIfNeeded } from "./switch-party.js";
     },
 
     // 执行对话委托流程（优化版）
-    executeTalkCommission: async (process_path) => {
+    executeTalkCommission: async (process_path, resumeRelativePath) => {
       try {
 
         const processSteps = await Execute.loadAndParseProcessFile(process_path);
@@ -733,15 +732,15 @@ import { switchPartyIfNeeded } from "./switch-party.js";
             try {
               log.info("尝试读取断点文件");
               // 拼接断点文件路径
-              const breakpointFilePath = `resuming/${relativePath}`;
+              const breakpointFilePath = `resuming/${resumeRelativePath}`;
               const simpleScript = JSON.parse(file.readTextSync(breakpointFilePath));
-              return await Execute.executeSimpleScriptFlow(simpleScript, process_path);
+              return await Execute.executeSimpleScriptFlow(simpleScript, process_path, resumeRelativePath);
             } catch (error) {
               log.debug(`读取断点文件时出错: {error}`, error.message);
               log.info("未找到断点文件，执行完整任务流程");
             }
           }
-          return await Execute.executeSimpleScriptFlow(processSteps.script, process_path);
+          return await Execute.executeSimpleScriptFlow(processSteps.script, process_path, resumeRelativePath);
         }
         return await Execute.executeUnifiedTalkProcess(
           processSteps,
@@ -915,7 +914,7 @@ import { switchPartyIfNeeded } from "./switch-party.js";
       }
 
       log.info("执行任务: {path}", picked.name);
-      relativePath = picked.path.replace(/^process[\\/]/, "");
+      const resumeRelativePath = picked.path.replace(/^process[\\/]/, "");
       log.info("启用自动剧情");
       dispatcher.AddTrigger(new RealtimeTimer("AutoSkip"));
       if (!settings.noSkip) {
@@ -927,7 +926,7 @@ import { switchPartyIfNeeded } from "./switch-party.js";
         dispatcher.AddTrigger(new RealtimeTimer("AutoEat"));
       }
       await switchPartyIfNeeded(team);
-      await Execute.executeTalkCommission(picked.path);
+      await Execute.executeTalkCommission(picked.path, resumeRelativePath);
       dispatcher.ClearAllTriggers();
       if(settings.xiaoxitongzhi) notification.Send("脚本执行完成");
     } catch (error) {
