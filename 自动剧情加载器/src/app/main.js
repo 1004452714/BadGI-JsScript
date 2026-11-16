@@ -919,11 +919,13 @@ export const Main = async () => {
     }
     await switchPartyIfNeeded(team);
     await executeTalkCommission(picked.path, resumeRelativePath);
-    dispatcher.ClearAllTriggers();
     if (settings.xiaoxitongzhi) notification.Send("脚本执行完成");
   } catch (error) {
     log.error("执行出错: {error}", error.message);
     errorlog();
     if (settings.xiaoxitongzhi) notification.error("脚本执行出错: " + error.message);
+  } finally {
+    // 出错路径同样要复位实时任务，否则自动拾取/吃药/跳过会残留到下一个脚本
+    dispatcher.ClearAllTriggers();
   }
 };
