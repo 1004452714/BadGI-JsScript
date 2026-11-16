@@ -393,9 +393,11 @@ async function executeSimpleScriptFlow(simpleScript, process_path, resumeRelativ
         } catch (error) {
           log.error("发生错误:", error);
         } finally {
-          // 释放键鼠资源
-          hook.dispose();
-          log.info("已释放资源");
+          // 释放键鼠资源；new KeyMouseHook() 失败时 hook 仍为 null，直接 dispose 会二次抛错
+          if (hook) {
+            hook.dispose();
+            log.info("已释放资源");
+          }
         }
         // 继续执行其他任务
         log.info("执行后续任务...");
