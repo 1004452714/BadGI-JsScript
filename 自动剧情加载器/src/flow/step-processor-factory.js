@@ -48,7 +48,7 @@ import { processDialogStep } from "../steps/dialog-step.js";
       },
 
       等待返回主界面: async (step, context) => {
-        await StepProcessor.processWaitMainUI();
+        await StepProcessor.processWaitMainUI(step.data);
       },
 
       切换角色: async (step, context) => {

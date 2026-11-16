@@ -171,7 +171,7 @@ processKeyPress: async (step) => {
 
 
     // 处理等待主界面步骤
-    processWaitMainUI: async (time) => {
+    processWaitMainUI: async (time = 600) => {
       for (let i = 0; i < time; i++) {
         if (isInMainUI()) {
           log.info("检测到已返回主界面，结束等待");
