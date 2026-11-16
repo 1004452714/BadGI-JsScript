@@ -21,18 +21,25 @@ function buildBlockIndex(blocks) {
   return { groupMap: build(), resumingMap: build() };
 }
 
-  // 版本和编译信息
-  const VERSION = "1.46";
-  const BUILD_TIME = "2026.07.12";
+  // 版本号以 manifest.json 为单一来源；读取失败或缺少版本时返回空字符串
+  function readManifestVersion() {
+    try {
+      const manifest = JSON.parse(file.readTextSync("manifest.json"));
+      return manifest.version || "";
+    } catch {
+      return "";
+    }
+  }
+
+  const VERSION = readManifestVersion();
 
   // 读取设置
   const team = settings.team || "";
   const elementTeam = settings.elementTeam || "";
   async function errorlog() {
-    // 输出版本和编译时间信息
+    // 输出版本信息
     log.info("=".repeat(20));
     log.info("版本: {version}", VERSION);
-    log.info("编译时间: {buildTime}", BUILD_TIME);
     log.info("=".repeat(20));
   }
 
