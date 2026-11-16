@@ -8,6 +8,7 @@ import { autoNavigateToTalk, autoNavigateToIcon } from "./src/steps/navigator.js
 import { StepProcessor } from "./src/steps/step-processor.js";
 import { DialogProcessor } from "./src/steps/dialog-processor.js";
 import { processDialogStep } from "./src/steps/dialog-step.js";
+import { StepProcessorFactory } from "./src/flow/step-processor-factory.js";
 
 (async function () {
   // 版本和编译信息
@@ -26,91 +27,6 @@ import { processDialogStep } from "./src/steps/dialog-step.js";
     log.info("=".repeat(20));
   }
 
-  // 步骤处理器工厂 - 更好的扩展性设计
-  // TAG:添加脚本功能点2
-  const StepProcessorFactory = {
-    // 步骤处理器映射表
-    processors: {
-      地图追踪: async (step, context) => {
-        await StepProcessor.processMapTracking(
-          step,
-          context
-        );
-      },
-
-      等待: async (step, context) => {
-        const waitTime = step.data || 5000;
-        log.info("等待 {time} 毫秒", waitTime);
-        await sleep(waitTime);
-      },
-
-      追踪委托: async (step, context) => {
-        await StepProcessor.processCommissionTracking(step);
-      },
-
-      键鼠脚本: async (step, context) => {
-        await StepProcessor.processKeyMouseScript(
-          step,
-          context
-        );
-      },
-
-      对话: async (step, context) => {
-        await processDialogStep(
-          step,
-          context.priorityOptions,
-          context.npcWhiteList,
-          context.isInMainUI
-        );
-      },
-
-	  按键: async (step, context) => {
-      await StepProcessor.processKeyPress(step);
-      },
-
-      tp: async (step, context) => {
-        await StepProcessor.processTeleport(step);
-      },
-
-      等待返回主界面: async (step, context) => {
-        await StepProcessor.processWaitMainUI();
-      },
-
-      切换角色: async (step, context) => {
-        await StepProcessor.processSwitchRole(step);
-      },
-
-      自动任务: async (step, context) => {
-        await StepProcessor.processAutoTask(step);
-      },
-	  长按: async (step, context) => {
-		const keydownTime = context.data || 3000;
-        log.info("等待 {keydownTime} 毫秒", keydownTime);
-		keyDown(data.step)
-        await sleep(keydownTime);
-		keyup(data.step)
-        await StepProcessor.longpressthebutton(step);
-      },
-    },
-
-    // 注册新的步骤处理器
-    register: (stepType, processor) => {
-      StepProcessorFactory.processors[stepType] = processor;
-      log.info("注册新的步骤处理器: {type}", stepType);
-    },
-
-    // 处理步骤
-    process: async (step, context) => {
-      const processor = StepProcessorFactory.processors[step.type];
-      if (processor) {
-        await processor(step, context);
-      } else {
-        log.warn("未知的流程类型: {type}", step.type);
-      }
-    },
-  };
-
-  // UI工具模块 - 处理UI检测和文本提取等工具函数
   const Execute = {
     // 寻找委托目的地址带追踪任务
     // 读取并解析流程文件为步骤数组
