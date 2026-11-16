@@ -52,12 +52,12 @@ import { StepProcessor } from "./step-processor.js";
           let text = nameResults[i].text;
           let res = nameResults[i];
           log.info(
-            "人名区域识别到{text}:位置({x},{y},{h},{w})",
+            "人名区域识别到{text}:位置({x},{y},{w},{h})",
             res.text,
             res.x,
             res.y,
             res.width,
-            res.Height
+            res.height
           );
           // 检查是否包含白名单中的NPC名称
           for (let j = 0; j < effectiveNpcWhiteList.length; j++) {
@@ -295,7 +295,7 @@ import { StepProcessor } from "./step-processor.js";
           let text = dialogResults[i].text;
           let res = dialogResults[i];
           log.info(
-            "对话区域识别到{text}:位置({x},{y},{h},{w})",
+            "对话区域识别到{text}:位置({x},{y},{w},{h})",
             res.text,
             res.x,
             res.y,
