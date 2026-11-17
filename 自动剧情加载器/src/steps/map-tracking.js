@@ -1,19 +1,8 @@
 // 地图追踪与追踪委托指令：运行流程目录下的地图追踪脚本，或按图标类型自动寻路到委托目标。
-// 依赖：pathingScript / log；追踪委托依赖 navigator.autoNavigateToTalk。
+// 依赖：pathingScript / log；路径拼接来自 common/path-utils，追踪委托依赖 navigator.autoNavigateToTalk。
 
 import { autoNavigateToTalk } from "./navigator.js";
-
-/**
- * 把流程文件路径与其相对脚本名拼成完整路径，并统一为正斜杠。
- * @param {string} processFilePath 流程文件路径
- * @param {string} relativeFile 相对于流程文件目录的脚本名
- * @returns {string} 可直接交给 pathingScript / keyMouseScript 的路径
- */
-export function resolveSiblingPath(processFilePath, relativeFile) {
-  const normalizedPath = processFilePath.replace(/\\/g, "/");
-  const processDir = normalizedPath.substring(0, normalizedPath.lastIndexOf("/"));
-  return `${processDir}/${relativeFile}`;
-}
+import { resolveSiblingPath } from "../common/path-utils.js";
 
 /**
  * 执行地图追踪步骤。
@@ -36,7 +25,7 @@ export async function processMapTracking(step, processFilePath) {
 
 /**
  * 执行追踪委托步骤：按 NPC 名与图标类型自动寻路到可对话位置。
- * data 为字符串时作为 NPC 名，为对象时读取 npc / iconType，缺省图标类型为 bigmap。
+ * data 为字符串时作为 NPC 名，为对象时读取 npc / iconType，缺省图标类型为 Bigmap。
  * @param {{data: string|{npc?: string, iconType?: string}}} step 步骤对象
  * @returns {Promise<void>}
  * @throws {Error} 寻路失败时向上抛出

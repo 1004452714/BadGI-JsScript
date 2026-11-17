@@ -1,7 +1,7 @@
 // 键鼠脚本指令：运行流程目录下录制的键鼠脚本文件。
 // 依赖：keyMouseScript / log。
 
-import { resolveSiblingPath } from "./map-tracking.js";
+import { resolveSiblingPath } from "../common/path-utils.js";
 
 /**
  * 执行键鼠脚本步骤。
