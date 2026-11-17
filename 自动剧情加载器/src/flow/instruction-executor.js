@@ -90,7 +90,6 @@ export async function executeInstruction(instruction, context) {
       }
       break;
     case "任务完成":
-    case "完成任务":
       return "DONE";
     case "暂停":
       await waitForPauseKey(data);
