@@ -1,4 +1,5 @@
-import { processSwitchRole, processAutoTask } from "../steps/step-processor.js";
+import { processSwitchRole } from "../steps/step-processor.js";
+import { processAutoTask } from "../steps/auto-task.js";
 import { processMapTracking, processCommissionTracking } from "../steps/map-tracking.js";
 import { processKeyMouseScript } from "../steps/keymouse.js";
 import { processKeyPress } from "../steps/key-commands.js";

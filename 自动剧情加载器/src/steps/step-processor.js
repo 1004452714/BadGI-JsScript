@@ -1,6 +1,5 @@
 import { readAliases } from "../common/utils.js";
 import { scrollPage } from "../common/ui.js";
-import { setRealtimeTrigger, disableAllRealtimeTriggers, realtimeTriggerKeyOf } from "../common/realtime-triggers.js";
 
 // 截图查找后立即释放截图；返回的 Region 不含 Mat，可继续使用其坐标与文本
 const findInGameScreen = (ro) => {
@@ -191,54 +190,3 @@ export async function processSwitchRole(step) {
   }
 }
 
-// 处理自动任务步骤
-export async function processAutoTask(step) {
-  try {
-    const { action, taskType, config } = step.data;
-
-    if (!action) {
-      log.error("自动任务参数不完整，需要 action 参数");
-      return false;
-    }
-
-    log.info("执行自动任务操作: {action}", action);
-
-    switch (action) {
-      case "enable": {
-        // 启用自动任务
-        if (!taskType) {
-          log.error("启用自动任务需要指定 taskType");
-          return false;
-        }
-
-        // 只有 AutoSkip/AutoPick/AutoEat 在宿主白名单内，其它名字会抛 ArgumentException
-        const triggerKey = realtimeTriggerKeyOf(taskType);
-        if (!triggerKey) {
-          log.error("不支持的自动任务类型: {type}，仅支持 AutoSkip/AutoPick/AutoEat", taskType);
-          return false;
-        }
-
-        if (config && typeof config === "object") {
-          log.warn("实时任务不支持附加配置，已忽略: {config}", JSON.stringify(config));
-        }
-        setRealtimeTrigger(triggerKey, true);
-        break;
-      }
-
-      case "disable":
-        // 取消所有自动任务
-        log.info("取消所有自动任务");
-        disableAllRealtimeTriggers();
-        break;
-
-      default:
-        log.error("未知的自动任务操作: {action}", action);
-        return false;
-    }
-
-    return true;
-  } catch (error) {
-    log.error("处理自动任务步骤时出错: {error}", error.message);
-    return false;
-  }
-}
