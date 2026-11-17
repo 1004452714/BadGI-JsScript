@@ -1,6 +1,6 @@
 import { easyOCR } from "../common/utils.js";
 import { extractName } from "../common/ui-utils.js";
-import { processWaitMainUI } from "./step-processor.js";
+import { processWaitMainUI } from "./timers.js";
 
 // 在 OCR 结果中优先点击白名单 NPC，其次点击包含提取人名的选项
 async function clickWhitelistOrExtractedName(results, npcWhiteList, extractedName, areaLabel) {

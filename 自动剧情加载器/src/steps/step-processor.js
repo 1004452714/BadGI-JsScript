@@ -74,20 +74,6 @@ export async function processKeyMouseScript(step, processFilePath) {
   }
 }
 
-// 处理等待主界面步骤
-export async function processWaitMainUI(time = 600) {
-  for (let i = 0; i < time; i++) {
-    if (isInMainUI()) {
-      log.info("检测到已返回主界面，结束等待");
-      break;
-    }
-    await sleep(1000);
-  }
-  if (!isInMainUI()) {
-    log.info("等待返回主界面超时，尝试继续执行后续步骤");
-  }
-}
-
 // 处理角色切换步骤
 export async function processSwitchRole(step) {
   try {
