@@ -1,13 +1,12 @@
 import { chooseProcess } from "../picker/picker.js";
-import { normalizeText, easyOCR, similarity } from "../common/utils.js";
 import { processMapTracking } from "../steps/map-tracking.js";
 import { executeOptimizedAutoTalk } from "../steps/dialog-processor.js";
 import { processRegisteredStep } from "../flow/step-processor-factory.js";
 import { switchPartyIfNeeded } from "./switch-party.js";
 import { isInMainUI } from "../common/main-ui.js";
 import { initRealtimeTriggers, disableAllRealtimeTriggers } from "../common/realtime-triggers.js";
-import { buildBlockIndex, loadAndParseProcessFile } from "../flow/parser.js";
-import { executeInstruction } from "../flow/instruction-executor.js";
+import { loadAndParseProcessFile } from "../flow/parser.js";
+import { executeSimpleScriptFlow } from "../flow/simple-script-runner.js";
 
 // 版本号以 manifest.json 为单一来源；读取失败或缺少版本时返回空字符串
 function readManifestVersion() {
@@ -31,145 +30,6 @@ async function errorlog() {
   log.info("=".repeat(20));
 }
 
-// 执行扩展的简单格式脚本
-async function executeSimpleScriptFlow(simpleScript, process_path, resumeRelativePath) {
-  const META = simpleScript.meta || {};
-  const BLOCKS = Array.isArray(simpleScript.blocks) ? simpleScript.blocks : [];
-  const defaultBlock = BLOCKS.find(b => b.isDefault) || null;
-  // 跨指令共享的队伍状态：记录原始队伍，供“切换 原来队伍”恢复
-  const teamState = { originalTeam: null };
-  // 指令执行上下文；teamState 在同一流程内共享
-  const executionContext = { processPath: process_path, team, elementTeam, teamState };
-
-  if (META.author) log.info("作者: {author}", META.author);
-  if (META.description) log.info("描述: {desc}", META.description);
-
-  // 建立描述 -> 块 列表映射，保持顺序；两份数组分别用于执行与断点
-  const { groupMap, resumingMap } = buildBlockIndex(BLOCKS);
-
-  const execCounter = new Map();
-
-  const detectCurrentDesc = async () => {
-    const region = { X: 75, Y: 240, WIDTH: 280, HEIGHT: 43 };
-    const ocr = await easyOCR(region);
-    let best = { sim: 0, descNorm: null };
-    for (let i = 0; i < ocr.count; i++) {
-      log.info("正在匹配任务区文本: {text}", ocr[i].text);
-      const txt = normalizeText(ocr[i].text);
-      for (const [descNorm] of groupMap) {
-        if (!descNorm) continue;
-        const sim = similarity(txt, descNorm);
-        if (sim > best.sim) best = { sim, descNorm };
-      }
-    }
-    if (ocr.count === 0) {
-      log.info("未匹配到任务描述文本");
-    }
-    return best.sim >= 0.9 ? best.descNorm : null;
-  };
-
-  // 检查是否有非默认块（任务描述块）
-  const hasTaskBlocks = BLOCKS.some(block => !block.isDefault);
-
-  // 如果没有任务描述块，只有默认块，则直接执行默认块一次后返回
-  if (!hasTaskBlocks && defaultBlock) {
-    log.info("脚本中无任务描述块，直接执行默认块");
-    //log.info("位置: {path}", process_path);
-    while (0 < defaultBlock.instructions.length) {
-      const instr = defaultBlock.instructions[0];
-      const res = await executeInstruction(instr, executionContext);
-
-      log.info("当前流程执行完毕，更新断点文件");
-      defaultBlock.instructions.splice(0, 1);
-      file.writeTextSync(`resuming/${resumeRelativePath}`, JSON.stringify(simpleScript, null, 2));
-      if (res === "DONE") {
-        log.info("收到任务完成指令，任务完成");
-        return true;
-      }
-      await sleep(200);
-    }
-    return true;
-  }
-
-  let safety = 0;
-  let lastMatchedDescNorm = null; // 记录上一次匹配到的描述
-  let retryCount = 0; // 重试计数器
-  const MAX_RETRY = 2; // 最大重试次数
-
-  while (safety++ < 200) {
-    // 13秒窗口尝试匹配
-    let matchedDescNorm = null;
-    await genshin.returnMainUi();
-    for (let i = 0; i < 13; i++) {
-      matchedDescNorm = await detectCurrentDesc();
-      if (matchedDescNorm) break;
-      keyPress("V");
-      await sleep(1000);
-    }
-
-    // 保存断点进度
-    if (lastMatchedDescNorm && matchedDescNorm !== lastMatchedDescNorm) {
-      try {
-        log.info("流程执行完毕，更新断点文件");
-        resumingMap.get(lastMatchedDescNorm).shift();
-        const descriptionNorms = Array.from(resumingMap.keys());
-        const blocks = descriptionNorms.flatMap(norm => resumingMap.get(norm));
-        const simpleScript = { meta: META, blocks: blocks };
-        file.writeTextSync(`resuming/${resumeRelativePath}`, JSON.stringify(simpleScript, null, 2));
-      } catch (error) {
-        log.error(`更新断点文件时出错{error}`, error.message);
-        break;
-      }
-    }
-
-    // 如果任务描述变为其他，重置计数器
-    if (matchedDescNorm !== lastMatchedDescNorm) {
-      retryCount = 0;
-      lastMatchedDescNorm = matchedDescNorm;
-      const ran = execCounter.get(matchedDescNorm) || 0;
-      execCounter.set(matchedDescNorm, ran + 1);
-    } else {
-      // 如果匹配到跟上次一样的，增加重试计数
-      retryCount++;
-    }
-
-    // 如果重试超过限制，直接退出
-    if (retryCount > MAX_RETRY) {
-      log.error("同一任务描述已重试2次，执行失败，结束流程");
-      break;
-    }
-
-    let blockToRun = null;
-    if (matchedDescNorm && groupMap.has(matchedDescNorm)) {
-      const ran = execCounter.get(matchedDescNorm) || 0;
-      const list = groupMap.get(matchedDescNorm);
-      const idx = Math.min(ran - 1, list.length - 1);
-      blockToRun = list[idx];
-      log.info("匹配到任务描述块: {desc}，第{idx}次执行", blockToRun.description, idx + 1);
-    } else if (defaultBlock) {
-      blockToRun = defaultBlock;
-      log.info("未匹配到任务描述，执行默认块: {desc}", defaultBlock.description);
-    } else {
-      log.warn("未匹配到任务描述且不存在默认块，结束流程");
-      break;
-    }
-
-    // 执行块内指令
-    for (const instr of blockToRun.instructions) {
-      const res = await executeInstruction(instr, executionContext);
-      if (res === "DONE") {
-        log.info("收到任务完成指令，任务完成");
-        return true;
-      }
-      await sleep(200); // 指令间短暂间隔
-    }
-
-    await sleep(500); // 块间间隔
-  }
-
-  return true;
-}
-
 // 执行对话委托流程（优化版）
 async function executeTalkCommission(process_path, resumeRelativePath) {
   try {
@@ -188,13 +48,13 @@ async function executeTalkCommission(process_path, resumeRelativePath) {
           // 拼接断点文件路径
           const breakpointFilePath = `resuming/${resumeRelativePath}`;
           const simpleScript = JSON.parse(file.readTextSync(breakpointFilePath));
-          return await executeSimpleScriptFlow(simpleScript, process_path, resumeRelativePath);
+          return await executeSimpleScriptFlow(simpleScript, process_path, resumeRelativePath, team, elementTeam);
         } catch (error) {
           log.debug(`读取断点文件时出错: {error}`, error.message);
           log.info("未找到断点文件，执行完整任务流程");
         }
       }
-      return await executeSimpleScriptFlow(processSteps.script, process_path, resumeRelativePath);
+      return await executeSimpleScriptFlow(processSteps.script, process_path, resumeRelativePath, team, elementTeam);
     }
     return await executeUnifiedTalkProcess(
       processSteps,
