@@ -42,36 +42,42 @@ function findInGameScreen(ro) {
  * @returns {Promise<boolean>} 切换成功返回 true；参数不全、找不到角色图像或角色已在队伍中返回 false
  */
 export async function processSwitchRole(step) {
+  // 模板图在函数结束统一释放（见 finally），避免每次切换角色都泄漏
+  let roTeamConfig = null;
+  let roReplace = null;
+  let roJoin = null;
   try {
     const { position, character } = step.data;
+    const positionNumber = Number(position);
 
-    if (!position || !character) {
-      log.error("角色切换参数不完整，需要 position 和 character");
+    // 号位只能是 1~4，否则 POSITION_COORDINATES 越界会抛 TypeError
+    if (!Number.isInteger(positionNumber) || positionNumber < 1 || positionNumber > 4 || !character) {
+      log.error("角色切换参数不完整或号位非法，需要 position(1-4) 和 character");
       return false;
     }
 
-    log.info(`开始切换角色：第${position}号位 -> ${character}`);
+    log.info(`开始切换角色：第${positionNumber}号位 -> ${character}`);
 
     // 别名先还原为正式角色名，后续按正式名匹配头像文件
     const aliases = readAliases();
     const actualName = aliases[character] || character;
     log.info(`设置对应号位为【${character}】，切换角色为【${actualName}】`);
 
-    const roTeamConfig = RecognitionObject.TemplateMatch(
+    roTeamConfig = RecognitionObject.TemplateMatch(
       file.ReadImageMatSync(`Data/RecognitionObject/队伍配置.png`),
       0,
       0,
       1920,
       1080
     );
-    const roReplace = RecognitionObject.TemplateMatch(
+    roReplace = RecognitionObject.TemplateMatch(
       file.ReadImageMatSync(`Data/RecognitionObject/更换.png`),
       0,
       0,
       1920,
       1080
     );
-    const roJoin = RecognitionObject.TemplateMatch(
+    roJoin = RecognitionObject.TemplateMatch(
       file.ReadImageMatSync(`Data/RecognitionObject/加入.png`),
       0,
       0,
@@ -109,9 +115,9 @@ export async function processSwitchRole(step) {
       return false;
     }
 
-    const rolenum = position;
+    const rolenum = positionNumber;
     const selectedCharacter = actualName;
-    const [x, y] = POSITION_COORDINATES[position - 1];
+    const [x, y] = POSITION_COORDINATES[positionNumber - 1];
     click(x, y);
     log.info(`开始设置${rolenum}号位角色`);
     await sleep(1000);
@@ -207,6 +213,12 @@ export async function processSwitchRole(step) {
   } catch (error) {
     log.error("角色切换过程中出错: {error}", error.message);
     return false;
+  } finally {
+    // 三张模板图用完统一释放，避免每轮调用累积 Mat
+    for (const ro of [roTeamConfig, roReplace, roJoin]) {
+      ro?.TemplateImageMat?.dispose?.();
+      ro?.TemplateImageGreyMat?.dispose?.();
+    }
   }
 }
 

@@ -1,5 +1,5 @@
 // 对话处理：识别任务人名/白名单 NPC 并点击，随后循环跳过对话直到返回主界面。
-// 依赖：log / sleep / genshin / keyPress / keyDown / keyUp / click / leftButtonClick / notification。
+// 依赖：log / sleep / genshin / keyPress / keyDown / keyUp / click / leftButtonClick。
 
 import { easyOCR } from "../common/utils.js";
 import { extractName } from "../common/ui-utils.js";

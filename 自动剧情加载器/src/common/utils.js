@@ -23,7 +23,6 @@ export async function easyOCR({ X, Y, WIDTH, HEIGHT }) {
     if (captureRegion) captureRegion.dispose();
   }
 }
-// 清理文本（去除标点符号等）
 /**
  * 去除文本中的标点与空白，只保留中文、字母与数字。
  * @param {string} text 原始文本

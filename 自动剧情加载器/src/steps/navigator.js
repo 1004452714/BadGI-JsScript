@@ -26,8 +26,10 @@ export async function autoNavigateToTalk(npcName = "", iconType = "") {
     const textArray = npcName;
 
     // 根据图标类型选择不同的识别对象
+    // 图标类型大小写不敏感，兼容 "bigmap"/"Bigmap"/"question" 等写法
+    const normalizedIconType = String(iconType || "").toLowerCase();
     let boxIconRo;
-    if (iconType === "Bigmap") {
+    if (normalizedIconType === "bigmap") {
       boxIconRo = RecognitionObject.TemplateMatch(
         file.ReadImageMatSync(
           "Data/RecognitionObject/Commission/IconBigmapCommission.jpg"
@@ -35,7 +37,7 @@ export async function autoNavigateToTalk(npcName = "", iconType = "") {
       );
       log.info("使用大地图图标");
     }
-    else if (iconType === "Question") {
+    else if (normalizedIconType === "question") {
       boxIconRo = RecognitionObject.TemplateMatch(
         file.ReadImageMatSync(
           "Data/RecognitionObject/Commission/IconQuestionCommission.png"
@@ -83,6 +85,13 @@ export async function autoNavigateToTalk(npcName = "", iconType = "") {
         const adjustRegion = captureGameRegion();
         try {
           let iconRes = adjustRegion.Find(boxIconRo);
+          // 未识别到图标时 Find 返回空 Region(0,0,0,0)，先判空避免用 0 坐标乱调视角
+          if (!iconRes || iconRes.isEmpty()) {
+            if (i > 50) throw new Error("视野调整超时");
+            keyPress("V");
+            await sleep(1000);
+            continue;
+          }
           log.info("检测到委托图标位置 ({x}, {y})", iconRes.x, iconRes.y);
           if (iconRes.x >= 920 && iconRes.x <= 980 && iconRes.y <= 540) {
             advanceNum++;
@@ -121,8 +130,8 @@ export async function autoNavigateToTalk(npcName = "", iconType = "") {
 export async function autoNavigateToIcon(iconType = "Bigmap") {
   try {
     const iconLogMap = {
-      Question: "感叹号",
-      Task: "问号",
+      Question: "问号",
+      Task: "感叹号",
       Into: "进入",
       Bigmap: "菱形"
     };
@@ -144,7 +153,7 @@ export async function autoNavigateToIcon(iconType = "Bigmap") {
         //icon只会出现在这个范围，且避免识别到委托描述的Icon
         file.ReadImageMatSync(iconPath), 300, 100, 1300, 800
       );
-      ro.threshold = 0.8
+      ro.Threshold = 0.8
       return ro
     });
 
@@ -201,7 +210,7 @@ export async function autoNavigateToIcon(iconType = "Bigmap") {
             // 小幅度调整
             if (iconRes.y >= 520) moveMouseBy(0, 920);
             let adjustAmount = iconRes.x < 920 ? -20 : 20;
-            let distanceToCenter = Math.abs(iconRes.x - 960); // 计算与920的距离
+            let distanceToCenter = Math.abs(iconRes.x - 920); // 计算与920的距离
             let scaleFactor = Math.max(1, Math.floor(distanceToCenter / 20)); // 根据距离缩放，最小为1
             let adjustAmount2 = iconRes.y < 540 ? scaleFactor : 10;
             moveMouseBy(adjustAmount * adjustAmount2, 0);

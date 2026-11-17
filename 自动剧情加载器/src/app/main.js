@@ -103,8 +103,12 @@ export const Main = async () => {
     log.info("执行任务: {path}", picked.name);
     const resumeRelativePath = picked.path.replace(/^process[\\/]/, "");
     await switchPartyIfNeeded(team);
-    await executeTalkCommission(picked.path, resumeRelativePath);
-    if (settings.xiaoxitongzhi) notification.Send("脚本执行完成");
+    const succeeded = await executeTalkCommission(picked.path, resumeRelativePath);
+    if (succeeded) {
+      if (settings.xiaoxitongzhi) notification.Send("脚本执行完成");
+    } else {
+      log.error("脚本执行未完成");
+    }
   } catch (error) {
     log.error("执行出错: {error}", error.message);
     errorlog();

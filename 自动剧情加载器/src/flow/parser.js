@@ -101,22 +101,22 @@ export function parseExtendedSimpleScript(content) {
     return /[:：]$/.test(trimmed) && !/^https?:\/\//i.test(trimmed);
   };
 
-  // 取首个中英文冒号作为键值分隔
+  // 取最靠前的中英文冒号作为键值分隔
   const extractHeaderKeyValue = (line) => {
-    const idx = Math.max(line.indexOf("："), line.indexOf(":"));
+    const idxCN = line.indexOf("：");
+    const idxEN = line.indexOf(":");
+    let idx;
+    if (idxCN === -1) idx = idxEN;
+    else if (idxEN === -1) idx = idxCN;
+    else idx = Math.min(idxCN, idxEN);
     if (idx === -1) return { key: "", value: "" };
     return { key: line.slice(0, idx).trim(), value: line.slice(idx + 1).trim() };
   };
 
   for (const raw of lines) {
-    // 去掉行尾 # 与 // 注释
-    let line = raw;
-    const cmtIdx1 = line.indexOf("#");
-    const cmtIdx2 = line.indexOf("//");
-    let cut = line.length;
-    if (cmtIdx1 !== -1) cut = Math.min(cut, cmtIdx1);
-    if (cmtIdx2 !== -1) cut = Math.min(cut, cmtIdx2);
-    line = line.slice(0, cut).trim();
+    // 去掉行内注释：只把前置空白之后的 # 或 // 视作注释起始，
+    // 这样 https:// 之类的 // 与紧贴文本的 # 不会被误截断；整行 # / // 仍由 isComment 处理
+    let line = raw.replace(/\s+(?:\/\/|#).*$/, "").trim();
     if (isComment(line)) continue;
 
     // 元数据：作者/描述

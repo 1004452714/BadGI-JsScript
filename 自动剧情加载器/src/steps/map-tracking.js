@@ -44,7 +44,7 @@ export async function processMapTracking(step, processFilePath) {
 export async function processCommissionTracking(step) {
   try {
     let targetNpc = "";
-    let iconType = "bigmap";
+    let iconType = "Bigmap";
 
     if (typeof step.data === "string") {
       targetNpc = step.data;
