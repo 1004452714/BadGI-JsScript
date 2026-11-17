@@ -1,7 +1,7 @@
 import { chooseProcess } from "../picker/picker.js";
-import { normalizeText, easyOCR, similarity, readAliases } from "../common/utils.js";
+import { normalizeText, easyOCR, similarity } from "../common/utils.js";
 import { interactWithTarget, clickAtCoordinates, clickByImageMatch, clickByOcrText, returnToMainUI } from "../steps/ui-actions.js";
-import { processSwitchRole } from "../steps/party-actions.js";
+import { switchPartyCharacters, switchPartyByName, switchCharacterBodyType } from "../steps/party-actions.js";
 import { processMapTracking, processCommissionTracking } from "../steps/map-tracking.js";
 import { processKeyMouseScript } from "../steps/keymouse.js";
 import { processKeyPress } from "../steps/key-commands.js";
@@ -41,7 +41,8 @@ async function executeSimpleScriptFlow(simpleScript, process_path, resumeRelativ
   const META = simpleScript.meta || {};
   const BLOCKS = Array.isArray(simpleScript.blocks) ? simpleScript.blocks : [];
   const defaultBlock = BLOCKS.find(b => b.isDefault) || null;
-  let originalTeam = null;  // 存储原始队伍，用于"切换 原来队伍"恢复
+  // 跨指令共享的队伍状态：记录原始队伍，供“切换 原来队伍”恢复
+  const teamState = { originalTeam: null };
 
   if (META.author) log.info("作者: {author}", META.author);
   if (META.description) log.info("描述: {desc}", META.description);
@@ -174,47 +175,7 @@ async function executeSimpleScriptFlow(simpleScript, process_path, resumeRelativ
         await dispatcher.runTask(new SoloTask("AutoFight"));
         break;
       case "切换": {
-        // 通用切换函数
-        const switchToCharacters = async (targetChars) => {
-          const currentTeam = Array.from(getAvatars() || []);
-          const aliases = readAliases();
-          for (let i = 0; i < targetChars.length; i++) {
-            const char = targetChars[i];
-            const name = aliases[char] || char;
-            if (currentTeam.includes(name)) {
-              log.info(`${name} 已在队伍中，跳过`);
-              continue;
-            }
-            if (!await processSwitchRole({ data: { position: i + 1, character: char } })) {
-              log.error(`切换失败：第${i + 1}号位 ${char}`);
-              return false;
-            }
-          }
-          return true;
-        };
-
-        const args = data.trim().split(/\s+/);
-        if (args[0] === "原来队伍") {
-          if (!originalTeam || originalTeam.length === 0) {
-            log.warn("未记录原始队伍，无法恢复");
-            break;
-          }
-          log.info("开始恢复原始队伍");
-          if (!await switchToCharacters(originalTeam)) log.warn("恢复失败");
-          originalTeam = null;
-          log.info("已恢复原始队伍");
-        } else {
-          if (!originalTeam) {
-            originalTeam = Array.from(getAvatars() || []);
-            log.info(`记录原始队伍: ${originalTeam.join(", ")}`);
-          }
-          if (!await switchToCharacters(args.slice(0, 4))) log.warn("切换失败");
-          log.info("角色切换完成");
-        }
-        keyPress("VK_ESCAPE");
-        await sleep(500);
-        keyPress("VK_ESCAPE");
-        await sleep(500);
+        await switchPartyCharacters(data, teamState);
         break;
       }
       case "点击": {
@@ -222,19 +183,7 @@ async function executeSimpleScriptFlow(simpleScript, process_path, resumeRelativ
         break;
       }
       case "切换队伍": {
-        const teamArgs = String(data).trim().split(/\s+/);
-        const teamType = teamArgs[0] || "战斗";
-        const needStatue = teamArgs[1] === "是";
-        const partyName = teamType === "元素采集" ? elementTeam : team;
-        if (!partyName) {
-          log.warn("未配置{teamType}队伍名称", teamType);
-          break;
-        }
-        if (needStatue) {
-          log.info("前往神像切换队伍: {partyName}", partyName);
-          await genshin.tpToStatueOfTheSeven();
-        }
-        await switchPartyIfNeeded(partyName);
+        await switchPartyByName(data, team, elementTeam);
         break;
       }
       case "图像匹配": {
@@ -242,56 +191,7 @@ async function executeSimpleScriptFlow(simpleScript, process_path, resumeRelativ
         break;
       }
       case "切换角色体型": {
-        const targetBodyType = String(data);
-        log.info("切换角色体型: {bodyType}", targetBodyType);
-        try {
-          const currentTeam = Array.from(getAvatars() || []);
-          if (currentTeam.length === 0) {
-            log.warn("无法识别当前队伍");
-            break;
-          }
-          let avatarData;
-          try {
-            avatarData = JSON.parse(file.readTextSync("Data/avatar/combat_avatar.json"));
-          } catch {
-            log.warn("未找到角色数据文件 Data/avatar/combat_avatar.json");
-            break;
-          }
-          const getBodyType = (charName) => {
-            for (const entry of avatarData) {
-              if (entry.name === charName || (entry.alias && entry.alias.includes(charName))) {
-                return entry.bodyType;
-              }
-            }
-            return null;
-          };
-          let targetIndex = -1;
-          for (let i = 0; i < currentTeam.length; i++) {
-            const bt = getBodyType(currentTeam[i]);
-            if (bt === targetBodyType) {
-              targetIndex = i;
-              break;
-            }
-          }
-          if (targetIndex === -1) {
-            log.warn("队伍中没有体型为{bodyType}的角色", targetBodyType);
-            break;
-          }/*
-          if (targetIndex === 0) {
-            log.info("当前出战角色已是{bodyType}体型: {name}", targetBodyType, currentTeam[0]);
-            break;
-          }*/ //这段不知道能不能跑起来
-          const slotKey = ["1", "2", "3", "4"][targetIndex];
-          log.info("切换到第{idx}号位: {name}", targetIndex + 1, currentTeam[targetIndex]);
-          keyPress(slotKey);
-          await sleep(200);
-          keyPress(slotKey);
-          await sleep(200);
-          keyPress(slotKey);
-          await sleep(5000);
-        } catch (e) {
-          log.error("切换角色体型失败: {e}", e);
-        }
+        await switchCharacterBodyType(data);
         break;
       }
       case "点击文字": {

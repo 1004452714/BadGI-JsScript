@@ -1,8 +1,9 @@
-// 队伍与角色指令：按号位切换角色。
-// 依赖：file / log / genshin / RecognitionObject / captureGameRegion / click / keyPress / sleep。
+// 队伍与角色指令：按号位切换角色、按角色列表切换队伍、按体型切换角色、按配置切换队伍。
+// 依赖：file / log / genshin / getAvatars / RecognitionObject / captureGameRegion / click / keyPress / sleep。
 
 import { readAliases } from "../common/utils.js";
 import { scrollPage } from "../common/ui.js";
+import { switchPartyIfNeeded } from "../app/switch-party.js";
 
 // 1~4 号位在队伍配置界面中的头像坐标（1920×1080 基准）
 const POSITION_COORDINATES = [
@@ -206,5 +207,140 @@ export async function processSwitchRole(step) {
   } catch (error) {
     log.error("角色切换过程中出错: {error}", error.message);
     return false;
+  }
+}
+
+// 角色体型对应的队伍槽位按键，索引 0~3 对应 1~4 号位
+const SLOT_KEYS = ["1", "2", "3", "4"];
+// 切换指令最多处理 4 个角色（一队上限）
+const MAX_PARTY_SIZE = 4;
+const ESCAPE_SETTLE_MS = 500;
+
+/**
+ * 按目标角色列表依次切换；首次切换前记录原始队伍，可用“原来队伍”恢复。
+ * teamState 需在同一流程执行期间保持同一对象引用。
+ * @param {string} data 以空白分隔的角色名；首项为“原来队伍”时执行恢复
+ * @param {{originalTeam: Array|null}} teamState 跨指令共享的队伍状态
+ * @returns {Promise<void>}
+ */
+export async function switchPartyCharacters(data, teamState) {
+  // 已在队伍中的角色跳过，只对缺失的号位执行切换
+  const switchToCharacters = async (targetChars) => {
+    const currentTeam = Array.from(getAvatars() || []);
+    const aliases = readAliases();
+    for (let i = 0; i < targetChars.length; i++) {
+      const char = targetChars[i];
+      const name = aliases[char] || char;
+      if (currentTeam.includes(name)) {
+        log.info(`${name} 已在队伍中，跳过`);
+        continue;
+      }
+      if (!await processSwitchRole({ data: { position: i + 1, character: char } })) {
+        log.error(`切换失败：第${i + 1}号位 ${char}`);
+        return false;
+      }
+    }
+    return true;
+  };
+
+  const args = data.trim().split(/\s+/);
+  if (args[0] === "原来队伍") {
+    if (!teamState.originalTeam || teamState.originalTeam.length === 0) {
+      log.warn("未记录原始队伍，无法恢复");
+      return;
+    }
+    log.info("开始恢复原始队伍");
+    if (!await switchToCharacters(teamState.originalTeam)) log.warn("恢复失败");
+    teamState.originalTeam = null;
+    log.info("已恢复原始队伍");
+  } else {
+    if (!teamState.originalTeam) {
+      teamState.originalTeam = Array.from(getAvatars() || []);
+      log.info(`记录原始队伍: ${teamState.originalTeam.join(", ")}`);
+    }
+    if (!await switchToCharacters(args.slice(0, MAX_PARTY_SIZE))) log.warn("切换失败");
+    log.info("角色切换完成");
+  }
+  keyPress("VK_ESCAPE");
+  await sleep(ESCAPE_SETTLE_MS);
+  keyPress("VK_ESCAPE");
+  await sleep(ESCAPE_SETTLE_MS);
+}
+
+/**
+ * 按队伍类型选择配置中的队伍并切换；可先传送到七天神像再切换。
+ * @param {string} data “队伍类型 [是否前往神像]”，队伍类型为“元素采集”时使用元素采集队伍
+ * @param {string} team 战斗队伍配置名
+ * @param {string} elementTeam 元素采集队伍配置名
+ * @returns {Promise<void>}
+ */
+export async function switchPartyByName(data, team, elementTeam) {
+  const teamArgs = String(data).trim().split(/\s+/);
+  const teamType = teamArgs[0] || "战斗";
+  const needStatue = teamArgs[1] === "是";
+  const partyName = teamType === "元素采集" ? elementTeam : team;
+  if (!partyName) {
+    log.warn("未配置{teamType}队伍名称", teamType);
+    return;
+  }
+  if (needStatue) {
+    log.info("前往神像切换队伍: {partyName}", partyName);
+    await genshin.tpToStatueOfTheSeven();
+  }
+  await switchPartyIfNeeded(partyName);
+}
+
+/**
+ * 在当前队伍中按体型查找角色，选中对应槽位三次完成切换。
+ * 角色体型来自 Data/avatar/combat_avatar.json 的 name/alias/bodyType 字段。
+ * @param {string} data 目标体型名称
+ * @returns {Promise<void>}
+ */
+export async function switchCharacterBodyType(data) {
+  const targetBodyType = String(data);
+  log.info("切换角色体型: {bodyType}", targetBodyType);
+  try {
+    const currentTeam = Array.from(getAvatars() || []);
+    if (currentTeam.length === 0) {
+      log.warn("无法识别当前队伍");
+      return;
+    }
+    let avatarData;
+    try {
+      avatarData = JSON.parse(file.readTextSync("Data/avatar/combat_avatar.json"));
+    } catch {
+      log.warn("未找到角色数据文件 Data/avatar/combat_avatar.json");
+      return;
+    }
+    const getBodyType = (charName) => {
+      for (const entry of avatarData) {
+        if (entry.name === charName || (entry.alias && entry.alias.includes(charName))) {
+          return entry.bodyType;
+        }
+      }
+      return null;
+    };
+    let targetIndex = -1;
+    for (let i = 0; i < currentTeam.length; i++) {
+      const bt = getBodyType(currentTeam[i]);
+      if (bt === targetBodyType) {
+        targetIndex = i;
+        break;
+      }
+    }
+    if (targetIndex === -1) {
+      log.warn("队伍中没有体型为{bodyType}的角色", targetBodyType);
+      return;
+    }
+    const slotKey = SLOT_KEYS[targetIndex];
+    log.info("切换到第{idx}号位: {name}", targetIndex + 1, currentTeam[targetIndex]);
+    keyPress(slotKey);
+    await sleep(200);
+    keyPress(slotKey);
+    await sleep(200);
+    keyPress(slotKey);
+    await sleep(5000);
+  } catch (e) {
+    log.error("切换角色体型失败: {e}", e);
   }
 }
