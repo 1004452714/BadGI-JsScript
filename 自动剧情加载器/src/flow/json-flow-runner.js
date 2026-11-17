@@ -29,6 +29,8 @@ export async function executeUnifiedTalkProcess(processSteps, processPath, locat
 
     let priorityOptions = [];
     let npcWhiteList = [];
+    // 同一流程内共享原始队伍状态，供“切换/原来队伍”恢复
+    const teamState = { originalTeam: null };
 
     for (let i = 0; i < processSteps.length; i++) {
       const step = processSteps[i];
@@ -48,9 +50,14 @@ export async function executeUnifiedTalkProcess(processSteps, processPath, locat
           isInMainUI,
           priorityOptions,
           npcWhiteList,
+          teamState,
         };
 
-        await processStep(step, context);
+        const stepResult = await processStep(step, context);
+        if (stepResult === "DONE") {
+          log.info("收到任务完成指令，任务完成");
+          return true;
+        }
       } catch (stepError) {
         log.error("执行步骤 {step} 时出错: {error}", i + 1, stepError.message);
         // 继续执行下一步，不中断整个流程
@@ -100,9 +107,9 @@ function processStepConfiguration(step, defaultPriorityOptions, defaultNpcWhiteL
  */
 async function processStep(step, context) {
   if (typeof step === "string") {
-    await processStringStep(step, context);
+    return await processStringStep(step, context);
   } else if (typeof step === "object") {
-    await processObjectStep(step, context);
+    return await processObjectStep(step, context);
   }
 }
 
@@ -136,5 +143,5 @@ async function processObjectStep(step, context) {
   if (step.note) {
     log.info("步骤说明: {note}", step.note);
   }
-  await processRegisteredStep(step, context);
+  return await processRegisteredStep(step, context);
 }

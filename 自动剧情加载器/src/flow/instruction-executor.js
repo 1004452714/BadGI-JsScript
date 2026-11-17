@@ -8,7 +8,9 @@ import { processWaitMainUI } from "../steps/timers.js";
 import { executeAutoTalk } from "../steps/dialog-processor.js";
 import { autoNavigateToIcon } from "../steps/navigator.js";
 import { interactWithTarget, clickAtCoordinates, clickByImageMatch, clickByOcrText, returnToMainUI } from "../steps/ui-actions.js";
-import { switchPartyCharacters, switchPartyByName, switchCharacterBodyType } from "../steps/party-actions.js";
+import { switchPartyCharacters, switchPartyByName, switchCharacterBodyType, processSwitchRole } from "../steps/party-actions.js";
+import { processAutoTask } from "../steps/auto-task.js";
+import { processDialogStep } from "../steps/dialog-step.js";
 import { waitForPauseKey } from "../steps/pause.js";
 import { setRealtimeTrigger } from "../common/realtime-triggers.js";
 
@@ -35,7 +37,13 @@ export async function executeInstruction(instruction, context) {
       await processKeyMouseScript({ data }, context.processPath);
       break;
     case "对话":
-      await executeAutoTalk(data);
+      // JSON 对象步骤的上下文带 isInMainUI/优先选项，沿用其原语义；
+      // 简单格式的上下文没有这些字段，按 NPC 名走 executeAutoTalk
+      if (context && typeof context.isInMainUI === "function") {
+        await processDialogStep(instruction, context.priorityOptions, context.npcWhiteList, context.isInMainUI);
+      } else {
+        await executeAutoTalk(data);
+      }
       break;
     case "交互":
       await interactWithTarget(data);
@@ -82,6 +90,7 @@ export async function executeInstruction(instruction, context) {
       }
       break;
     case "任务完成":
+    case "完成任务":
       return "DONE";
     case "暂停":
       await waitForPauseKey(data);
@@ -92,11 +101,22 @@ export async function executeInstruction(instruction, context) {
     case "切换":
       await switchPartyCharacters(data, context.teamState);
       break;
+    case "切换角色":
+      await processSwitchRole(instruction);
+      break;
+    case "自动任务":
+      await processAutoTask(instruction);
+      break;
     case "点击":
       await clickAtCoordinates(data);
       break;
     case "切换队伍":
-      await switchPartyByName(data, context.team, context.elementTeam);
+      // 简单格式由调用方传入队名；JSON 对象步骤不带队名时回退到脚本设置
+      await switchPartyByName(
+        data,
+        context.team ?? settings.team ?? "",
+        context.elementTeam ?? settings.elementTeam ?? ""
+      );
       break;
     case "图像匹配":
       await clickByImageMatch(data, context.processPath);
