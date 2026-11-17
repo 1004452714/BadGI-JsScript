@@ -10,7 +10,7 @@ async function advanceStep() {
   await sleep(200);
 }
 
-// 自动导航到NPC对话位置（从main_branch.js移植）
+// 自动导航到 NPC 对话位置
 export async function autoNavigateToTalk(npcName = "", iconType = "") {
   try {
     // 设置目标NPC名称

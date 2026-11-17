@@ -7,7 +7,7 @@ const paimonMenuRo = RecognitionObject.TemplateMatch(
   genshin.width / 3.0,
   genshin.width / 5.0
 );
-//新增识别退出按钮
+// 识别退出按钮
 const exitBtnRo = RecognitionObject.TemplateMatch(
   file.ReadImageMatSync("Data/RecognitionObject/exitbtn.png"),
   0,

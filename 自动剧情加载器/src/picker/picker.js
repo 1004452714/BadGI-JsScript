@@ -1,7 +1,7 @@
 // htmlMask 剧情选择器：枚举 process 目录、与遮罩页面收发选择消息。
 // file / log / htmlMask 均为 BetterGI 注入的引擎全局，模块内直接可用。
 
-// 文件夹读取函数（优化版）
+// 递归读取目录下的文件清单，按需只保留 .json 文件
 async function readFolder(folderPath, onlyJson) {
   const folderStack = [folderPath];
   const files = [];

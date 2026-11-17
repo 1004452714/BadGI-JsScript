@@ -64,7 +64,7 @@ export async function executeOptimizedAutoTalk(
   customNpcWhiteList = null,
   isInMainUI
 ) {
-  // 使用传入的参数，不再加载默认配置
+  // 使用调用方传入的参数
   const effectivePriorityOptions = customPriorityOptions || [];
   const effectiveNpcWhiteList = customNpcWhiteList || [];
 
@@ -185,7 +185,7 @@ export async function executeOptimizedAutoTalk(
  * @returns {Promise<void>}
  */
 export async function executeAutoTalk(data) {
-  // 使用传入的参数，不再加载默认配置
+  // 使用调用方传入的参数
   // 确保 effectiveNpcWhiteList 始终是一个数组，并过滤掉空字符串
   let effectiveNpcWhiteList = [];
   if (Array.isArray(data)) {

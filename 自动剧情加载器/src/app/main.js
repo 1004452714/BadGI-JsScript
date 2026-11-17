@@ -27,15 +27,13 @@ async function errorlog() {
   log.info("=".repeat(20));
 }
 
-// 执行对话委托流程（优化版）
+// 执行对话委托流程
 async function executeTalkCommission(process_path, resumeRelativePath) {
   try {
 
     // 实时任务在流程真正开始时启用，而不是在脚本启动阶段
     initRealtimeTriggers();
     const processSteps = await loadAndParseProcessFile(process_path);
-
-    //log.info("文件位置: {path}", process_path);
 
     // 使用统一的处理器执行流程
     if (processSteps && processSteps.__simpleScript) {

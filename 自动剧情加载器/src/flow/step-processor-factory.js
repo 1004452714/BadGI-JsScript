@@ -6,8 +6,7 @@ import { processKeyPress } from "../steps/key-commands.js";
 import { processWaitMainUI } from "../steps/timers.js";
 import { processDialogStep } from "../steps/dialog-step.js";
 
-// 步骤处理器工厂 - 更好的扩展性设计
-// TAG:添加脚本功能点2
+// 步骤处理器工厂：按步骤类型分发给对应处理器
 
 // 步骤处理器映射表
 const processors = {
