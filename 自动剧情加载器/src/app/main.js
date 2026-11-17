@@ -2,7 +2,7 @@
 // 依赖：file / log / settings / notification / sleep；流程解析与执行来自 flow 模块。
 
 import { chooseProcess } from "../picker/picker.js";
-import { switchPartyIfNeeded } from "./switch-party.js";
+import { switchPartyIfNeeded } from "../steps/switch-party.js";
 import { initRealtimeTriggers, disableAllRealtimeTriggers } from "../common/realtime-triggers.js";
 import { loadAndParseProcessFile } from "../flow/parser.js";
 import { executeSimpleScriptFlow } from "../flow/simple-script-runner.js";

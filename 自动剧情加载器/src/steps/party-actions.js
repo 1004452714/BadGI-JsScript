@@ -3,7 +3,7 @@
 
 import { readAliases } from "../common/utils.js";
 import { scrollPage } from "../common/ui.js";
-import { switchPartyIfNeeded } from "../app/switch-party.js";
+import { switchPartyIfNeeded } from "./switch-party.js";
 
 // 1~4 号位在队伍配置界面中的头像坐标（1920×1080 基准）
 const POSITION_COORDINATES = [
