@@ -1,4 +1,5 @@
-import { processMapTracking, processCommissionTracking, processKeyMouseScript, processKeyPress, processWaitMainUI, processSwitchRole, processAutoTask } from "../steps/step-processor.js";
+import { processMapTracking, processCommissionTracking, processKeyMouseScript, processWaitMainUI, processSwitchRole, processAutoTask } from "../steps/step-processor.js";
+import { processKeyPress } from "../steps/key-commands.js";
 import { processDialogStep } from "../steps/dialog-step.js";
 
 // 步骤处理器工厂 - 更好的扩展性设计
