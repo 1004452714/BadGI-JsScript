@@ -1,17 +1,45 @@
+// 队伍与角色指令：按号位切换角色。
+// 依赖：file / log / genshin / RecognitionObject / captureGameRegion / click / keyPress / sleep。
+
 import { readAliases } from "../common/utils.js";
 import { scrollPage } from "../common/ui.js";
 
-// 截图查找后立即释放截图；返回的 Region 不含 Mat，可继续使用其坐标与文本
-const findInGameScreen = (ro) => {
+// 1~4 号位在队伍配置界面中的头像坐标（1920×1080 基准）
+const POSITION_COORDINATES = [
+  [460, 538],
+  [792, 538],
+  [1130, 538],
+  [1462, 538],
+];
+// 角色选择列表最多滚动轮数，以及仍允许滚动的前置轮数
+const MAX_PAGE_TRIES = 20;
+const SCROLLABLE_PAGE_TRIES = 15;
+// 打开配对界面连续失败时，先传送到固定锚点再重试的最大累计次数
+const MAX_PAIRING_ATTEMPTS = 6;
+const PAIRING_ANCHOR_X = "2297.630859375";
+const PAIRING_ANCHOR_Y = "-824.5517578125";
+
+/**
+ * 截图并查找目标，查找结束后立即释放截图。
+ * 返回的 Region 不含 Mat，可继续使用其坐标与文本。
+ * @param {Object} ro 识别对象
+ * @returns {Object} 查找结果 Region
+ */
+function findInGameScreen(ro) {
   const captureRegion = captureGameRegion();
   try {
     return captureRegion.find(ro);
   } finally {
     captureRegion.dispose();
   }
-};
+}
 
-// 处理角色切换步骤
+/**
+ * 按号位切换角色：打开配对界面、选中号位、在角色列表中匹配头像并确认更换。
+ * @param {{data: {position: number, character: string}}} step 步骤对象；
+ *        position 仅接受 1–4，character 可为别名
+ * @returns {Promise<boolean>} 切换成功返回 true；参数不全、找不到角色图像或角色已在队伍中返回 false
+ */
 export async function processSwitchRole(step) {
   try {
     const { position, character } = step.data;
@@ -23,19 +51,11 @@ export async function processSwitchRole(step) {
 
     log.info(`开始切换角色：第${position}号位 -> ${character}`);
 
-    const positionCoordinates = [
-      [460, 538],
-      [792, 538],
-      [1130, 538],
-      [1462, 538],
-    ];
-
-    // 读取别名
+    // 别名先还原为正式角色名，后续按正式名匹配头像文件
     const aliases = readAliases();
     const actualName = aliases[character] || character;
     log.info(`设置对应号位为【${character}】，切换角色为【${actualName}】`);
 
-    // 识别对象定义
     const roTeamConfig = RecognitionObject.TemplateMatch(
       file.ReadImageMatSync(`Data/RecognitionObject/队伍配置.png`),
       0,
@@ -61,7 +81,7 @@ export async function processSwitchRole(step) {
     let openPairingTries = 0;
     let totalOpenPairingTries = 0;
 
-    // 打开配对界面的内部函数
+    // 连续三次识别不到队伍配置界面即视为打开失败，累计超过上限后传送到锚点重试
     const openPairingInterface = async () => {
       while (openPairingTries < 3) {
         keyPress("l");
@@ -74,8 +94,8 @@ export async function processSwitchRole(step) {
         openPairingTries++;
         totalOpenPairingTries++;
       }
-      if (totalOpenPairingTries < 6) {
-        await genshin.tp("2297.630859375", "-824.5517578125");
+      if (totalOpenPairingTries < MAX_PAIRING_ATTEMPTS) {
+        await genshin.tp(PAIRING_ANCHOR_X, PAIRING_ANCHOR_Y);
         openPairingTries = 0;
         return openPairingInterface();
       } else {
@@ -90,7 +110,7 @@ export async function processSwitchRole(step) {
 
     const rolenum = position;
     const selectedCharacter = actualName;
-    const [x, y] = positionCoordinates[position - 1];
+    const [x, y] = POSITION_COORDINATES[position - 1];
     click(x, y);
     log.info(`开始设置${rolenum}号位角色`);
     await sleep(1000);
@@ -112,8 +132,7 @@ export async function processSwitchRole(step) {
     }
     log.info(`角色【${selectedCharacter}】共 ${characterImagePaths.length} 张候选图像`);
 
-    // 最多尝试滚动页面20次
-    while (pageTries < 20) {
+    while (pageTries < MAX_PAGE_TRIES) {
       // 依次比对候选图像，命中即点击并结束
       for (const imagePath of characterImagePaths) {
         const characterRo = RecognitionObject.TemplateMatch(
@@ -135,7 +154,7 @@ export async function processSwitchRole(step) {
           continue;
         }
         log.info(`已找到角色${selectedCharacter}`);
-        // 计算向右偏移35像素、向下偏移35像素的位置
+        // 头像命中后点击其右下偏移位置，避免点到头像中心的选中态
         const targetX = characterResult.x + 35;
         const targetY = characterResult.y + 35;
 
@@ -144,7 +163,7 @@ export async function processSwitchRole(step) {
         const safeY = Math.min(Math.max(targetY, 0), 1080);
 
         click(safeX, safeY);
-        await sleep(500); // 点击角色后等待0.5秒
+        await sleep(500);
         characterFound = true;
         break;
       }
@@ -153,10 +172,10 @@ export async function processSwitchRole(step) {
         break;
       }
 
-      // 如果不是最后一次尝试，尝试滚动页面
-      if (pageTries < 15) {
+      // 列表可能未加载完目标角色，滚动后继续查找
+      if (pageTries < SCROLLABLE_PAGE_TRIES) {
         log.info("当前页面没有目标角色，滚动页面");
-        await scrollPage(200); // 使用UI模块的scrollPage函数
+        await scrollPage(200);
       }
       pageTries++;
     }
@@ -166,7 +185,7 @@ export async function processSwitchRole(step) {
       return false;
     }
 
-    // 识别"更换"或"加入"按钮
+    // 识别"更换"或"加入"按钮：命中说明可切换，否则角色已在队伍中
     const replaceResult = findInGameScreen(roReplace);
     const joinResult = findInGameScreen(roJoin);
 
@@ -189,4 +208,3 @@ export async function processSwitchRole(step) {
     return false;
   }
 }
-

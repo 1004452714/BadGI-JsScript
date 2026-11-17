@@ -1,4 +1,4 @@
-import { processSwitchRole } from "../steps/step-processor.js";
+import { processSwitchRole } from "../steps/party-actions.js";
 import { processAutoTask } from "../steps/auto-task.js";
 import { processMapTracking, processCommissionTracking } from "../steps/map-tracking.js";
 import { processKeyMouseScript } from "../steps/keymouse.js";

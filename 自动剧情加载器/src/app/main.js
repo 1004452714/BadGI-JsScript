@@ -1,7 +1,7 @@
 import { chooseProcess } from "../picker/picker.js";
 import { normalizeText, easyOCR, similarity, readAliases } from "../common/utils.js";
 import { clickTargetByText } from "../common/ui-utils.js";
-import { processSwitchRole } from "../steps/step-processor.js";
+import { processSwitchRole } from "../steps/party-actions.js";
 import { processMapTracking, processCommissionTracking } from "../steps/map-tracking.js";
 import { processKeyMouseScript } from "../steps/keymouse.js";
 import { processKeyPress } from "../steps/key-commands.js";
