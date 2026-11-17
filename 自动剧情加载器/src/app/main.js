@@ -1,6 +1,6 @@
 import { chooseProcess } from "../picker/picker.js";
 import { normalizeText, easyOCR, similarity, readAliases } from "../common/utils.js";
-import { clickTargetByText } from "../common/ui-utils.js";
+import { interactWithTarget, clickAtCoordinates, clickByImageMatch, clickByOcrText, returnToMainUI } from "../steps/ui-actions.js";
 import { processSwitchRole } from "../steps/party-actions.js";
 import { processMapTracking, processCommissionTracking } from "../steps/map-tracking.js";
 import { processKeyMouseScript } from "../steps/keymouse.js";
@@ -86,10 +86,7 @@ async function executeSimpleScriptFlow(simpleScript, process_path, resumeRelativ
         break;
       }
       case "交互": {
-        if (data) {
-          await clickTargetByText(data);
-          await sleep(300);
-        }
+        await interactWithTarget(data);
         break;
       }
       case "等待返回主界面":
@@ -221,16 +218,7 @@ async function executeSimpleScriptFlow(simpleScript, process_path, resumeRelativ
         break;
       }
       case "点击": {
-        const parts = String(data).split(/[,，]/);
-        const cx = parseInt(parts[0], 10);
-        const cy = parseInt(parts[1], 10);
-        if (!isNaN(cx) && !isNaN(cy)) {
-          log.info("点击坐标: ({x}, {y})", cx, cy);
-          click(cx, cy);
-          await sleep(300);
-        } else {
-          log.warn("点击指令格式错误，应为：点击 x,y，实际：{data}", data);
-        }
+        await clickAtCoordinates(data);
         break;
       }
       case "切换队伍": {
@@ -250,31 +238,7 @@ async function executeSimpleScriptFlow(simpleScript, process_path, resumeRelativ
         break;
       }
       case "图像匹配": {
-        const imagePath = String(data);
-        const dir = process_path.replace(/[^\\/]+$/, "");
-        const fullPath = dir + imagePath;
-        log.info("图像匹配: {path}", fullPath);
-        try {
-          const template = file.ReadImageMatSync(fullPath);
-          const screen = captureGameRegion();
-          try {
-            const ro = RecognitionObject.templateMatch(template, 0, 0, 1920, 1080);
-            ro.Threshold = 0.8;
-            const found = screen.find(ro);
-            if (!found.isEmpty()) {
-              found.click();
-              log.info("图像匹配成功，已点击");
-              await sleep(300);
-            } else {
-              log.warn("图像匹配未找到: {path}", fullPath);
-            }
-          } finally {
-            screen.dispose();
-            template.dispose();
-          }
-        } catch (e) {
-          log.error("图像匹配失败: {e}", e);
-        }
+        await clickByImageMatch(data, process_path);
         break;
       }
       case "切换角色体型": {
@@ -331,56 +295,11 @@ async function executeSimpleScriptFlow(simpleScript, process_path, resumeRelativ
         break;
       }
       case "点击文字": {
-        // 格式：点击文字 x,y,w,h,文字
-        const ocrParts = String(data).split(/[,，]/);
-        if (ocrParts.length < 5) {
-          log.warn("点击文字指令格式错误，应为：点击文字 x,y,w,h,文字，实际：{data}", data);
-          break;
-        }
-        const ox = parseInt(ocrParts[0], 10);
-        const oy = parseInt(ocrParts[1], 10);
-        const ow = parseInt(ocrParts[2], 10);
-        const oh = parseInt(ocrParts[3], 10);
-        const targetText = ocrParts.slice(4).join(",");
-        if (isNaN(ox) || isNaN(oy) || isNaN(ow) || isNaN(oh)) {
-          log.warn("点击文字坐标无效: {data}", data);
-          break;
-        }
-        log.info("点击文字: 区域({x},{y},{w},{h}) 目标文字: {text}", ox, oy, ow, oh, targetText);
-        try {
-          const screen = captureGameRegion();
-          try {
-            const ro = RecognitionObject.ocr(ox, oy, ow, oh);
-            const regions = screen.findMulti(ro);
-            let bestMatch = null;
-            let bestSim = 0;
-            for (let i = 0; i < regions.Count; i++) {
-              const txt = normalizeText(regions[i].Text);
-              const sim = similarity(txt, normalizeText(targetText));
-              if (sim > bestSim) {
-                bestSim = sim;
-                bestMatch = regions[i];
-              }
-            }
-            if (bestMatch && bestSim >= 0.6) {
-              bestMatch.click();
-              log.info("点击文字成功，相似度: {sim}", bestSim.toFixed(2));
-              await sleep(300);
-            } else {
-              log.warn("点击文字未找到匹配: 目标={text}，最高相似度={sim}", targetText, bestSim.toFixed(2));
-            }
-          } finally {
-            screen.dispose();
-          }
-        } catch (e) {
-          log.error("点击文字失败: {e}", e);
-        }
+        await clickByOcrText(data);
         break;
       }
       case "返回主界面":
-        log.info("执行返回主界面");
-        await genshin.returnMainUi();
-        await sleep(500);
+        await returnToMainUI();
         break;
       default:
         log.warn("未实现的指令类型: {type}", type);
