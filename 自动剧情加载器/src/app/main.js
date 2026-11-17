@@ -1,7 +1,8 @@
 import { chooseProcess } from "../picker/picker.js";
 import { normalizeText, easyOCR, similarity, readAliases } from "../common/utils.js";
 import { clickTargetByText } from "../common/ui-utils.js";
-import { processMapTracking, processKeyMouseScript, processCommissionTracking, processSwitchRole } from "../steps/step-processor.js";
+import { processKeyMouseScript, processSwitchRole } from "../steps/step-processor.js";
+import { processMapTracking, processCommissionTracking } from "../steps/map-tracking.js";
 import { processKeyPress } from "../steps/key-commands.js";
 import { processWaitMainUI } from "../steps/timers.js";
 import { executeAutoTalk, executeOptimizedAutoTalk } from "../steps/dialog-processor.js";

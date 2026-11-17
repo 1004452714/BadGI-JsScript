@@ -1,7 +1,5 @@
 import { readAliases } from "../common/utils.js";
 import { scrollPage } from "../common/ui.js";
-import { isInMainUI } from "../common/main-ui.js";
-import { autoNavigateToTalk } from "./navigator.js";
 import { setRealtimeTrigger, disableAllRealtimeTriggers, realtimeTriggerKeyOf } from "../common/realtime-triggers.js";
 
 // 截图查找后立即释放截图；返回的 Region 不含 Mat，可继续使用其坐标与文本
@@ -13,51 +11,6 @@ const findInGameScreen = (ro) => {
     captureRegion.dispose();
   }
 };
-
-// 步骤处理器类 - 处理不同类型的委托执行步骤
-// TAG:添加脚本功能点1
-// 处理地图追踪步骤
-export async function processMapTracking(step, processFilePath) {
-  //log.info("1");
-  const normalizedPath = processFilePath.replace(/\\/g, '/');
-  const processDir = normalizedPath.substring(0, normalizedPath.lastIndexOf('/'));
-  const fullPath = `${processDir}/${step.data}`;
-  log.info("执行地图追踪: {path}", fullPath);
-  try {
-    await pathingScript.runFile(fullPath);
-    log.info("地图追踪执行完成");
-  } catch (error) {
-    log.error("执行地图追踪时出错: {error}", error.message);
-    throw error;
-  }
-}
-
-// 处理追踪委托步骤
-export async function processCommissionTracking(step) {
-  try {
-    // 获取目标NPC名称和图标类型
-    let targetNpc = "";
-    let iconType = "bigmap";
-
-    if (typeof step.data === "string") {
-      targetNpc = step.data;
-    } else if (typeof step.data === "object") {
-      if (step.data.npc) targetNpc = step.data.npc;
-      if (step.data.iconType) iconType = step.data.iconType;
-    }
-
-    log.info(
-      "执行追踪委托，目标NPC: {target}，图标类型: {type}",
-      targetNpc,
-      iconType
-    );
-    await autoNavigateToTalk(targetNpc, iconType);
-    log.info("追踪委托执行完成");
-  } catch (error) {
-    log.error("执行追踪委托时出错: {error}", error.message);
-    throw error;
-  }
-}
 
 // 处理键鼠脚本步骤
 export async function processKeyMouseScript(step, processFilePath) {
