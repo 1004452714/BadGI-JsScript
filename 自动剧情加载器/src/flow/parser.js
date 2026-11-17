@@ -10,24 +10,6 @@ const DEFAULT_WAIT_MAIN_UI_SECONDS = 600;
 const DEFAULT_WAIT_MS = 5000;
 
 /**
- * 按规范化任务描述为步骤块建立索引。
- * groupMap 供执行查找，resumingMap 持有独立的数组副本供断点裁剪，二者互不影响。
- * @param {Array<{descriptionNorm: string}>} blocks 已解析的步骤块
- * @returns {{groupMap: Map<string, Array>, resumingMap: Map<string, Array>}}
- */
-export function buildBlockIndex(blocks) {
-  const build = () => {
-    const map = new Map();
-    for (const block of blocks) {
-      if (!map.has(block.descriptionNorm)) map.set(block.descriptionNorm, []);
-      map.get(block.descriptionNorm).push(block);
-    }
-    return map;
-  };
-  return { groupMap: build(), resumingMap: build() };
-}
-
-/**
  * 读取流程文件并依次尝试三种格式：JSON 数组、扩展简单格式、旧逐行格式。
  * 空文件或读取失败返回 false；解析成功返回步骤数组或带 __simpleScript 标记的结果。
  * @param {string} processPath 流程文件路径
@@ -83,7 +65,7 @@ export async function loadAndParseProcessFile(processPath) {
  * @param {string} content 流程文件文本
  * @returns {{meta: {author: string, description: string}, blocks: Array}}
  */
-export function parseExtendedSimpleScript(content) {
+function parseExtendedSimpleScript(content) {
   const lines = content.split("\n");
   const blocks = [];
   const meta = { author: "", description: "" };

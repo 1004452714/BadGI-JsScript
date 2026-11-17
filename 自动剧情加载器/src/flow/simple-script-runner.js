@@ -2,7 +2,6 @@
 // 依赖：file / log / genshin / keyPress / sleep；解析与指令执行来自 flow 内模块。
 
 import { normalizeText, easyOCR, similarity } from "../common/utils.js";
-import { buildBlockIndex } from "./parser.js";
 import { executeInstruction } from "./instruction-executor.js";
 
 // 任务描述 OCR 区域（游戏画面左上角任务栏）
@@ -19,6 +18,24 @@ const SAFETY_LIMIT = 200;
 const DESC_RETRY_INTERVAL_MS = 1000;
 const INSTRUCTION_INTERVAL_MS = 200;
 const BLOCK_INTERVAL_MS = 500;
+
+/**
+ * 按规范化任务描述为步骤块建立索引。
+ * groupMap 供执行查找，resumingMap 持有独立的数组副本供断点裁剪，二者互不影响。
+ * @param {Array<{descriptionNorm: string}>} blocks 已解析的步骤块
+ * @returns {{groupMap: Map<string, Array>, resumingMap: Map<string, Array>}}
+ */
+function buildBlockIndex(blocks) {
+  const build = () => {
+    const map = new Map();
+    for (const block of blocks) {
+      if (!map.has(block.descriptionNorm)) map.set(block.descriptionNorm, []);
+      map.get(block.descriptionNorm).push(block);
+    }
+    return map;
+  };
+  return { groupMap: build(), resumingMap: build() };
+}
 
 /**
  * 执行扩展简单格式脚本。
