@@ -1,4 +1,5 @@
 // 实时任务（AutoSkip / AutoPick / AutoEat）状态记录。
+// 依赖：log / dispatcher / RealtimeTimer。
 // 上游 Dispatcher 只有 AddTrigger（追加到启用名单）与 ClearAllTriggers（整体清空），
 // 没有按名移除；所以「只关掉其中一个」只能记录状态后整体重建。
 // TaskTriggerDispatcher.ScriptTriggerTypes 白名单仅含这三个名字，其它名字会抛 ArgumentException。
@@ -33,7 +34,11 @@ function apply() {
   }
 }
 
-// 以 settings 为初值初始化并立即应用；settings 只提供流程启动时的默认开关
+/**
+ * 以 settings 为初值初始化实时任务并立即应用。
+ * 自动剧情默认开启；自动拾取/自动吃药受配置项控制。
+ * @returns {void}
+ */
 export function initRealtimeTriggers() {
   state.autoSkip = true;
   state.autoPick = !settings.noSkip;
@@ -41,7 +46,13 @@ export function initRealtimeTriggers() {
   apply();
 }
 
-// 修改单个实时任务状态后重建；key 必须是 autoSkip/autoPick/autoEat
+/**
+ * 修改单个实时任务状态并重建启用名单。
+ * 状态未变化时跳过；未知 key 记录错误并返回 false。
+ * @param {"autoSkip"|"autoPick"|"autoEat"} key 任务键
+ * @param {boolean} enabled 是否启用
+ * @returns {boolean} 处理成功返回 true
+ */
 export function setRealtimeTrigger(key, enabled) {
   if (!TRIGGER_NAMES[key]) {
     log.error("未知的实时任务: {key}", key);
@@ -57,13 +68,20 @@ export function setRealtimeTrigger(key, enabled) {
   return true;
 }
 
-// 全部关闭并清空启用名单，供脚本结束时复位
+/**
+ * 全部关闭并清空启用名单，供脚本结束时复位。
+ * @returns {void}
+ */
 export function disableAllRealtimeTriggers() {
   for (const key of TRIGGER_ORDER) state[key] = false;
   dispatcher.ClearAllTriggers();
 }
 
-// 供步骤处理器把流程里的中文任务名映射到状态键
+/**
+ * 把流程里的任务名（如 AutoPick）映射到内部状态键（如 autoPick）。
+ * @param {string} taskType 任务名
+ * @returns {string|null} 状态键；未知名字返回 null
+ */
 export function realtimeTriggerKeyOf(taskType) {
   for (const key of TRIGGER_ORDER) {
     if (TRIGGER_NAMES[key] === taskType) return key;

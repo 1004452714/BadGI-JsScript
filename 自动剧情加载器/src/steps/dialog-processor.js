@@ -1,8 +1,18 @@
+// 对话处理：识别任务人名/白名单 NPC 并点击，随后循环跳过对话直到返回主界面。
+// 依赖：log / sleep / genshin / keyPress / keyDown / keyUp / click / leftButtonClick / notification。
+
 import { easyOCR } from "../common/utils.js";
 import { extractName } from "../common/ui-utils.js";
 import { processWaitMainUI } from "./timers.js";
 
-// 在 OCR 结果中优先点击白名单 NPC，其次点击包含提取人名的选项
+/**
+ * 在 OCR 结果中优先点击白名单 NPC，其次点击包含提取人名的选项。
+ * @param {Object} results OCR 结果列表（含 count）
+ * @param {string[]} npcWhiteList NPC 白名单
+ * @param {string|null} extractedName 从任务描述中提取到的人名
+ * @param {string} areaLabel 日志用的区域名
+ * @returns {Promise<{clickedWhitelistNPC: boolean, clickedExtractedName: boolean}>}
+ */
 async function clickWhitelistOrExtractedName(results, npcWhiteList, extractedName, areaLabel) {
   let clickedWhitelistNPC = false;
   let clickedExtractedName = false;
@@ -56,8 +66,15 @@ async function clickWhitelistOrExtractedName(results, npcWhiteList, extractedNam
   return { clickedWhitelistNPC, clickedExtractedName };
 }
 
-// 对话处理模块 - 处理自动对话相关功能
-// 执行优化的自动对话
+/**
+ * 执行优化的自动对话：识别 NPC 并点击触发剧情，之后循环跳过对话，
+ * 遇到优先选项时优先点击，直到返回主界面或达到最大尝试次数。
+ * @param {number} [skipCount=5] 每次跳过对话的次数
+ * @param {string[]|null} [customPriorityOptions=null] 优先选项列表
+ * @param {string[]|null} [customNpcWhiteList=null] NPC 白名单
+ * @param {() => boolean} isInMainUI 主界面判断函数
+ * @returns {Promise<void>}
+ */
 export async function executeOptimizedAutoTalk(
   skipCount = 5,
   customPriorityOptions = null,

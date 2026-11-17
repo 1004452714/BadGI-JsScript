@@ -1,3 +1,6 @@
+// 自动寻路：调整视野朝目标前进，分别用于追踪 NPC 对话与追踪地图图标。
+// 依赖：log / file / RecognitionObject / captureGameRegion / keyPress / keyDown / keyUp / moveMouseBy / middleButtonClick / sleep。
+
 // 前进一小步（W + 两次空格），供追踪对话与追踪图标复用
 async function advanceStep() {
   keyDown("w");
@@ -10,7 +13,13 @@ async function advanceStep() {
   await sleep(200);
 }
 
-// 自动导航到 NPC 对话位置
+/**
+ * 自动导航到 NPC 对话位置：按图标类型选取识别对象，调整视野并前进直到到达。
+ * @param {string} [npcName=""] 目标 NPC 名称，用于到达判定
+ * @param {string} [iconType=""] 图标类型（Bigmap / Question，其它按任务图标）
+ * @returns {Promise<void>}
+ * @throws {Error} 前进或视野调整超时时抛出
+ */
 export async function autoNavigateToTalk(npcName = "", iconType = "") {
   try {
     // 设置目标NPC名称
@@ -103,6 +112,12 @@ export async function autoNavigateToTalk(npcName = "", iconType = "") {
   }
 }
 
+/**
+ * 追踪地图图标并前进，直到进入对话或连续多次未检测到图标。
+ * @param {string} [iconType="Bigmap"] 图标类型，用于筛选模板图文件名
+ * @returns {Promise<void>}
+ * @throws {Error} 视野调整超时时抛出
+ */
 export async function autoNavigateToIcon(iconType = "Bigmap") {
   try {
     const iconLogMap = {

@@ -1,3 +1,12 @@
+// 通用工具：OCR 封装、文本清理与相似度、角色别名读取。
+// 依赖：log / captureGameRegion / RecognitionObject / file。
+
+/**
+ * 在指定区域内做 OCR，返回识别到的文本区域列表。
+ * 出错时记录日志并返回空列表 { count: 0 }。
+ * @param {{X: number, Y: number, WIDTH: number, HEIGHT: number}} region 识别区域
+ * @returns {Promise<Object>} 文本区域列表（含 count 与按索引访问的项）
+ */
 export async function easyOCR({ X, Y, WIDTH, HEIGHT }) {
   let captureRegion = null;
   try {
@@ -15,16 +24,30 @@ export async function easyOCR({ X, Y, WIDTH, HEIGHT }) {
   }
 }
 // 清理文本（去除标点符号等）
+/**
+ * 去除文本中的标点与空白，只保留中文、字母与数字。
+ * @param {string} text 原始文本
+ * @returns {string} 清理后的文本；空输入返回空串
+ */
 export function cleanText(text) {
   if (!text) return "";
   // 去除标点符号和特殊字符
   return text.replace(/[^\u4e00-\u9fa5a-zA-Z0-9]/g, "").trim();
 }
-// 规范化文本（清理并转小写）
+/**
+ * 规范化文本：先清理再转小写，用于描述相似度比较。
+ * @param {*} text 原始文本
+ * @returns {string} 规范化后的文本
+ */
 export function normalizeText(text) {
   return cleanText(String(text || "")).toLowerCase();
 }
-// Levenshtein 距离
+/**
+ * 计算两个字符串的 Levenshtein 编辑距离。
+ * @param {string} a 字符串一
+ * @param {string} b 字符串二
+ * @returns {number} 编辑距离
+ */
 export function levenshteinDistance(a, b) {
   const s = String(a || "");
   const t = String(b || "");
@@ -49,7 +72,12 @@ export function levenshteinDistance(a, b) {
   }
   return d[n][m];
 }
-// 文本相似度 [0,1]
+/**
+ * 计算两段文本的相似度（0~1），基于规范化后的 Levenshtein 距离。
+ * @param {*} a 文本一
+ * @param {*} b 文本二
+ * @returns {number} 相似度，1 表示完全相同
+ */
 export function similarity(a, b) {
   const s1 = normalizeText(a);
   const s2 = normalizeText(b);
@@ -60,7 +88,11 @@ export function similarity(a, b) {
   return 1 - dist / maxLen;
 }
 
-// 读取角色别名文件
+/**
+ * 读取角色别名文件，构建“别名 → 正式角色名”的映射。
+ * 文件缺失或解析失败时记录日志并返回空对象。
+ * @returns {Object<string, string>} 别名映射
+ */
 export function readAliases() {
   try {
     const combatText = file.ReadTextSync("Data/avatar/combat_avatar.json");

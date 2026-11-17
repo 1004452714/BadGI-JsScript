@@ -1,5 +1,5 @@
 // htmlMask 剧情选择器：枚举 process 目录、与遮罩页面收发选择消息。
-// file / log / htmlMask 均为 BetterGI 注入的引擎全局，模块内直接可用。
+// 依赖：file / log / htmlMask（BetterGI 注入的引擎全局，模块内直接可用）。
 
 // 递归读取目录下的文件清单，按需只保留 .json 文件
 async function readFolder(folderPath, onlyJson) {
@@ -113,6 +113,11 @@ async function countProcesses() {
     .sort((a, b) => a.name.localeCompare(b.name, "zh-CN"));
 }
 
+/**
+ * 弹出 htmlMask 剧情选择器，返回用户选中的流程文件。
+ * 用户取消、关闭窗口或 process 目录不存在时返回 null。
+ * @returns {Promise<{name: string, path: string}|null>} 选中项的名称与路径
+ */
 export async function chooseProcess() {
   if (!file.IsFolder(PICKER_ROOT)) {
     log.warn("未找到剧情目录 process/，无法弹出选择器");

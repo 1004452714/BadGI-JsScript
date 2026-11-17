@@ -1,3 +1,6 @@
+// 应用编排入口：读取版本与设置、选择剧情、切换队伍、执行流程并统一清理实时任务。
+// 依赖：file / log / settings / notification / sleep；流程解析与执行来自 flow 模块。
+
 import { chooseProcess } from "../picker/picker.js";
 import { switchPartyIfNeeded } from "./switch-party.js";
 import { initRealtimeTriggers, disableAllRealtimeTriggers } from "../common/realtime-triggers.js";
@@ -5,7 +8,10 @@ import { loadAndParseProcessFile } from "../flow/parser.js";
 import { executeSimpleScriptFlow } from "../flow/simple-script-runner.js";
 import { executeUnifiedTalkProcess } from "../flow/json-flow-runner.js";
 
-// 版本号以 manifest.json 为单一来源；读取失败或缺少版本时返回空字符串
+/**
+ * 读取 manifest.json 中的版本号。
+ * @returns {string} 版本号；读取失败或缺少版本时返回空字符串
+ */
 function readManifestVersion() {
   try {
     const manifest = JSON.parse(file.readTextSync("manifest.json"));
@@ -20,14 +26,23 @@ const VERSION = readManifestVersion();
 // 读取设置
 const team = settings.team || "";
 const elementTeam = settings.elementTeam || "";
+
+/**
+ * 输出版本信息，便于异常时定位脚本版本。
+ * @returns {void}
+ */
 async function errorlog() {
-  // 输出版本信息
   log.info("=".repeat(20));
   log.info("版本: {version}", VERSION);
   log.info("=".repeat(20));
 }
 
-// 执行对话委托流程
+/**
+ * 执行对话委托流程：启用实时任务，按格式选择断点续跑、简单格式或 JSON 流程执行。
+ * @param {string} process_path 流程文件路径
+ * @param {string} resumeRelativePath 断点文件相对 resuming/ 的路径
+ * @returns {Promise<boolean>} 流程正常结束返回 true
+ */
 async function executeTalkCommission(process_path, resumeRelativePath) {
   try {
 
@@ -62,7 +77,10 @@ async function executeTalkCommission(process_path, resumeRelativePath) {
   }
 }
 
-//Main
+/**
+ * 脚本入口：校验暂停键配置、选择剧情、切换队伍并执行流程，结束时统一复位实时任务。
+ * @returns {Promise<void>}
+ */
 export const Main = async () => {
   log.debug("版本: {version}", VERSION);
   try {

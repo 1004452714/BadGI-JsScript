@@ -1,4 +1,12 @@
-// 切换队伍
+// 切换队伍：按配置名切换队伍，失败时前往七天神像重试。
+// 依赖：log / genshin / notification / settings。
+
+/**
+ * 切换到指定队伍；队伍名为空时仅返回主界面。
+ * 首次切换失败会前往七天神像重试一次，异常时提示可能的联机原因。
+ * @param {string} partyName 队伍配置名
+ * @returns {Promise<void>}
+ */
 export async function switchPartyIfNeeded(partyName) {
   if (!partyName) {
     await genshin.returnMainUi();
