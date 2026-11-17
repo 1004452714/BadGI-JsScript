@@ -2,12 +2,10 @@
 // 依赖：file / log；文本规范化依赖 common/utils.normalizeText。
 
 import { normalizeText } from "../common/utils.js";
+import { DEFAULT_WAIT_MS, DEFAULT_WAIT_MAIN_UI_SECONDS } from "../common/constants.js";
 
 // 被视为默认块的任务描述，命中后即使没有匹配到描述也执行
 const DEFAULT_BLOCK_PATTERN = /^(默认|無任務描述字符串|无任务描述字符串|nomatch|default|超时)$/i;
-// 等待返回主界面缺省秒数，与 README 语义一致
-const DEFAULT_WAIT_MAIN_UI_SECONDS = 600;
-const DEFAULT_WAIT_MS = 5000;
 
 /**
  * 读取流程文件并依次尝试三种格式：JSON 数组、扩展简单格式、旧逐行格式。

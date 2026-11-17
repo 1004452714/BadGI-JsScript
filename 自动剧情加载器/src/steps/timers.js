@@ -2,6 +2,7 @@
 // 依赖：log / isInMainUI / sleep。
 
 import { isInMainUI } from "../common/main-ui.js";
+import { DEFAULT_WAIT_MAIN_UI_SECONDS } from "../common/constants.js";
 
 const MAIN_UI_POLL_INTERVAL_MS = 1000;
 
@@ -11,7 +12,7 @@ const MAIN_UI_POLL_INTERVAL_MS = 1000;
  * @param {number} [time=600] 最长等待秒数
  * @returns {Promise<void>}
  */
-export async function processWaitMainUI(time = 600) {
+export async function processWaitMainUI(time = DEFAULT_WAIT_MAIN_UI_SECONDS) {
   for (let i = 0; i < time; i++) {
     if (isInMainUI()) {
       log.info("检测到已返回主界面，结束等待");

@@ -13,10 +13,10 @@ import { processAutoTask } from "../steps/auto-task.js";
 import { processDialogStep } from "../steps/dialog-step.js";
 import { waitForPauseKey } from "../steps/pause.js";
 import { setRealtimeTrigger } from "../common/realtime-triggers.js";
+import { DEFAULT_WAIT_MS } from "../common/constants.js";
 
 const TIME_ADJUST_FILE = "Data/time.json";
 const TIME_ADJUST_LEAD_MS = 1000;
-const DEFAULT_WAIT_MS = 5000;
 
 /**
  * 执行一条流程指令。
