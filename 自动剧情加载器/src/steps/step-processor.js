@@ -12,21 +12,6 @@ const findInGameScreen = (ro) => {
   }
 };
 
-// 处理键鼠脚本步骤
-export async function processKeyMouseScript(step, processFilePath) {
-  const normalizedPath = processFilePath.replace(/\\/g, '/');
-  const processDir = normalizedPath.substring(0, normalizedPath.lastIndexOf('/'));
-  const fullPath = `${processDir}/${step.data}`;
-  log.info("执行键鼠脚本: {path}", fullPath);
-  try {
-    await keyMouseScript.runFile(fullPath);
-    log.info("键鼠脚本执行完成");
-  } catch (error) {
-    log.error("执行键鼠脚本时出错: {error}", error.message);
-    throw error;
-  }
-}
-
 // 处理角色切换步骤
 export async function processSwitchRole(step) {
   try {

@@ -1,5 +1,6 @@
-import { processKeyMouseScript, processSwitchRole, processAutoTask } from "../steps/step-processor.js";
+import { processSwitchRole, processAutoTask } from "../steps/step-processor.js";
 import { processMapTracking, processCommissionTracking } from "../steps/map-tracking.js";
+import { processKeyMouseScript } from "../steps/keymouse.js";
 import { processKeyPress } from "../steps/key-commands.js";
 import { processWaitMainUI } from "../steps/timers.js";
 import { processDialogStep } from "../steps/dialog-step.js";
