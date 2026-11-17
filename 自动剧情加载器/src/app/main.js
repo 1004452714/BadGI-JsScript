@@ -1,19 +1,13 @@
 import { chooseProcess } from "../picker/picker.js";
 import { normalizeText, easyOCR, similarity } from "../common/utils.js";
-import { interactWithTarget, clickAtCoordinates, clickByImageMatch, clickByOcrText, returnToMainUI } from "../steps/ui-actions.js";
-import { switchPartyCharacters, switchPartyByName, switchCharacterBodyType } from "../steps/party-actions.js";
-import { waitForPauseKey } from "../steps/pause.js";
-import { processMapTracking, processCommissionTracking } from "../steps/map-tracking.js";
-import { processKeyMouseScript } from "../steps/keymouse.js";
-import { processKeyPress } from "../steps/key-commands.js";
-import { processWaitMainUI } from "../steps/timers.js";
-import { executeAutoTalk, executeOptimizedAutoTalk } from "../steps/dialog-processor.js";
+import { processMapTracking } from "../steps/map-tracking.js";
+import { executeOptimizedAutoTalk } from "../steps/dialog-processor.js";
 import { processRegisteredStep } from "../flow/step-processor-factory.js";
-import { autoNavigateToIcon } from "../steps/navigator.js";
 import { switchPartyIfNeeded } from "./switch-party.js";
 import { isInMainUI } from "../common/main-ui.js";
-import { initRealtimeTriggers, setRealtimeTrigger, disableAllRealtimeTriggers } from "../common/realtime-triggers.js";
+import { initRealtimeTriggers, disableAllRealtimeTriggers } from "../common/realtime-triggers.js";
 import { buildBlockIndex, loadAndParseProcessFile } from "../flow/parser.js";
+import { executeInstruction } from "../flow/instruction-executor.js";
 
 // 版本号以 manifest.json 为单一来源；读取失败或缺少版本时返回空字符串
 function readManifestVersion() {
@@ -44,6 +38,8 @@ async function executeSimpleScriptFlow(simpleScript, process_path, resumeRelativ
   const defaultBlock = BLOCKS.find(b => b.isDefault) || null;
   // 跨指令共享的队伍状态：记录原始队伍，供“切换 原来队伍”恢复
   const teamState = { originalTeam: null };
+  // 指令执行上下文；teamState 在同一流程内共享
+  const executionContext = { processPath: process_path, team, elementTeam, teamState };
 
   if (META.author) log.info("作者: {author}", META.author);
   if (META.description) log.info("描述: {desc}", META.description);
@@ -72,107 +68,6 @@ async function executeSimpleScriptFlow(simpleScript, process_path, resumeRelativ
     return best.sim >= 0.9 ? best.descNorm : null;
   };
 
-  const executeInstruction = async (instr) => {
-    const type = instr.type;
-    const data = instr.data;
-    switch (type) {
-      case "地图追踪":
-        await processMapTracking({ data }, process_path);
-        break;
-      case "键鼠脚本":
-        await processKeyMouseScript({ data }, process_path);
-        break;
-      case "对话": {
-        // 优先点击NPC名
-        await executeAutoTalk(data);
-        break;
-      }
-      case "交互": {
-        await interactWithTarget(data);
-        break;
-      }
-      case "等待返回主界面":
-        await processWaitMainUI(data);
-        break;
-      case "追踪图标": {
-        const iconType = data || "Bigmap";
-        await autoNavigateToIcon(iconType);
-        break;
-      }
-      case "追踪委托": {
-        if (data !== undefined && data !== null) {
-          await processCommissionTracking({ data });
-        }
-        break;
-      }
-      case "提示": {
-        if (data) {
-          log.info("提示: {data}", data);
-        }
-        break;
-      }
-      case "调时间": {
-        await sleep(1000);//等待任务弹出
-        let filePath = `Data/time.json`;
-        await keyMouseScript.runFile(filePath);
-        break;
-      }
-      case "按键":
-        await processKeyPress({ data });
-        break;
-      case "等待":
-        log.info("等待{data}毫秒", data);
-        await sleep(typeof data === "number" ? data : 5000);
-        break;
-      case "自动拾取":
-        // 只切换自动拾取本身，不再整体清空启用名单，避免连带关掉自动剧情/自动吃药
-        if (data === "关闭") {
-          setRealtimeTrigger("autoPick", false);
-        } else {
-          setRealtimeTrigger("autoPick", true);
-        }
-        break;
-      case "任务完成":
-        return "DONE";
-      case "暂停":
-        await waitForPauseKey(data);
-        break;
-      case "战斗":
-        await dispatcher.runTask(new SoloTask("AutoFight"));
-        break;
-      case "切换": {
-        await switchPartyCharacters(data, teamState);
-        break;
-      }
-      case "点击": {
-        await clickAtCoordinates(data);
-        break;
-      }
-      case "切换队伍": {
-        await switchPartyByName(data, team, elementTeam);
-        break;
-      }
-      case "图像匹配": {
-        await clickByImageMatch(data, process_path);
-        break;
-      }
-      case "切换角色体型": {
-        await switchCharacterBodyType(data);
-        break;
-      }
-      case "点击文字": {
-        await clickByOcrText(data);
-        break;
-      }
-      case "返回主界面":
-        await returnToMainUI();
-        break;
-      default:
-        log.warn("未实现的指令类型: {type}", type);
-    }
-    return "OK";
-  };
-
   // 检查是否有非默认块（任务描述块）
   const hasTaskBlocks = BLOCKS.some(block => !block.isDefault);
 
@@ -182,7 +77,7 @@ async function executeSimpleScriptFlow(simpleScript, process_path, resumeRelativ
     //log.info("位置: {path}", process_path);
     while (0 < defaultBlock.instructions.length) {
       const instr = defaultBlock.instructions[0];
-      const res = await executeInstruction(instr);
+      const res = await executeInstruction(instr, executionContext);
 
       log.info("当前流程执行完毕，更新断点文件");
       defaultBlock.instructions.splice(0, 1);
@@ -261,7 +156,7 @@ async function executeSimpleScriptFlow(simpleScript, process_path, resumeRelativ
 
     // 执行块内指令
     for (const instr of blockToRun.instructions) {
-      const res = await executeInstruction(instr);
+      const res = await executeInstruction(instr, executionContext);
       if (res === "DONE") {
         log.info("收到任务完成指令，任务完成");
         return true;
