@@ -2,6 +2,7 @@ import { chooseProcess } from "../picker/picker.js";
 import { normalizeText, easyOCR, similarity } from "../common/utils.js";
 import { interactWithTarget, clickAtCoordinates, clickByImageMatch, clickByOcrText, returnToMainUI } from "../steps/ui-actions.js";
 import { switchPartyCharacters, switchPartyByName, switchCharacterBodyType } from "../steps/party-actions.js";
+import { waitForPauseKey } from "../steps/pause.js";
 import { processMapTracking, processCommissionTracking } from "../steps/map-tracking.js";
 import { processKeyMouseScript } from "../steps/keymouse.js";
 import { processKeyPress } from "../steps/key-commands.js";
@@ -134,42 +135,7 @@ async function executeSimpleScriptFlow(simpleScript, process_path, resumeRelativ
       case "任务完成":
         return "DONE";
       case "暂停":
-        let isPaused = true;
-        let hook = null;
-        let stopkey = settings.pause //定义暂停键(可能多此一举？)
-        try {
-          await sleep(1000);//暂停前等待（似乎没用吧）
-          log.warn("脚本已暂停，请手动操作游戏");
-          if (settings.xiaoxitongzhi) notification.error("脚本已暂停，请手动操作游戏");
-          if (data) {
-            log.warn('作者提示：{data}', data);
-          }
-          log.warn(`完成后按 ${stopkey} 键继续...`);
-          hook = new KeyMouseHook();  // 注册按键回调
-          hook.OnKeyDown(function (stopkeykey) {
-            // 判断是否是暂停键
-            if (stopkeykey === stopkey) {
-              isPaused = false;
-              log.info(`已检测到 ${stopkey} 键，准备继续执行`);
-            }
-          });
-          // 等待按下暂停键
-          while (isPaused) {
-            await sleep(100); // 等待减少资源消耗
-          }
-          log.info("脚本继续执行...");
-        } catch (error) {
-          log.error("发生错误:", error);
-        } finally {
-          // 释放键鼠资源；new KeyMouseHook() 失败时 hook 仍为 null，直接 dispose 会二次抛错
-          if (hook) {
-            hook.dispose();
-            log.info("已释放资源");
-          }
-        }
-        // 继续执行其他任务
-        log.info("执行后续任务...");
-        await sleep(1000);
+        await waitForPauseKey(data);
         break;
       case "战斗":
         await dispatcher.runTask(new SoloTask("AutoFight"));
